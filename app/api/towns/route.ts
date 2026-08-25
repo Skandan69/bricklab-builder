@@ -1,0 +1,157 @@
+import { and, count, desc, eq, inArray } from "drizzle-orm";
+import { getAnyDb, storageUnavailable } from "../../../db/client";
+import { townLikes, towns } from "../../../db/schema";
+import {
+  LIST_LIMIT,
+  checkTownData,
+  cleanName,
+  cleanThumb,
+  cleanVisibility,
+  currentViewer,
+  ensureViewer,
+  fail,
+  isTownId,
+  isVoterId,
+  newTownId,
+} from "./shared";
+
+export const dynamic = "force-dynamic";
+
+type TownRow = typeof towns.$inferSelect;
+
+/** Everything a gallery card needs — never the full town payload. */
+function card(row: TownRow, likes: number, liked: boolean, mine: boolean) {
+  return {
+    id: row.id,
+    name: row.name,
+    ownerName: row.ownerName,
+    brickCount: row.brickCount,
+    thumb: row.thumb,
+    visibility: row.visibility,
+    updatedAt: row.updatedAt,
+    likes,
+    liked,
+    mine,
+  };
+}
+
+async function decorate(
+  db: NonNullable<Awaited<ReturnType<typeof getAnyDb>>>,
+  rows: TownRow[],
+  voterId: string | null,
+  ownerId: string | null,
+) {
+  if (!rows.length) return [];
+  const ids = rows.map((row) => row.id);
+  const counts = await db
+    .select({ townId: townLikes.townId, value: count() })
+    .from(townLikes)
+    .where(inArray(townLikes.townId, ids))
+    .groupBy(townLikes.townId);
+  const byTown = new Map(counts.map((row) => [row.townId, row.value]));
+
+  let mineLiked = new Set<string>();
+  if (voterId) {
+    const liked = await db
+      .select({ townId: townLikes.townId })
+      .from(townLikes)
+      .where(and(inArray(townLikes.townId, ids), eq(townLikes.voterId, voterId)));
+    mineLiked = new Set(liked.map((row) => row.townId));
+  }
+  return rows.map((row) =>
+    card(row, byTown.get(row.id) ?? 0, mineLiked.has(row.id), !!ownerId && row.ownerId === ownerId),
+  );
+}
+
+/** GET /api/towns?scope=public|mine&limit=&offset=&voterId= */
+export async function GET(request: Request) {
+  const url = new URL(request.url);
+  const scope = url.searchParams.get("scope") === "mine" ? "mine" : "public";
+  const voterIdParam = url.searchParams.get("voterId");
+  const voterId = isVoterId(voterIdParam) ? voterIdParam : null;
+  const limit = Math.min(LIST_LIMIT, Math.max(1, Number(url.searchParams.get("limit")) || 12));
+  const offset = Math.max(0, Number(url.searchParams.get("offset")) || 0);
+
+  const viewer = await currentViewer();
+  if (scope === "mine" && !viewer) return Response.json({ items: [], signedIn: false });
+
+  const db = await getAnyDb();
+  if (!db) return storageUnavailable();
+  const rows = await db
+    .select()
+    .from(towns)
+    .where(scope === "mine" ? eq(towns.ownerId, viewer!.ownerId) : eq(towns.visibility, "public"))
+    .orderBy(desc(towns.updatedAt))
+    .limit(limit)
+    .offset(offset);
+
+  return Response.json({
+    items: await decorate(db, rows, voterId, viewer?.ownerId ?? null),
+    signedIn: !!viewer,
+  });
+}
+
+/** POST /api/towns — create or update one of the signed-in player's towns. */
+export async function POST(request: Request) {
+  const viewer = await ensureViewer();
+
+  let body: {
+    id?: unknown;
+    name?: unknown;
+    data?: unknown;
+    thumb?: unknown;
+    visibility?: unknown;
+  };
+  try {
+    body = (await request.json()) as typeof body;
+  } catch {
+    return fail("Invalid JSON body", 400);
+  }
+
+  const checked = checkTownData(body.data);
+  if (!checked.ok) return fail(checked.error, checked.status);
+
+  const db = await getAnyDb();
+  if (!db) return storageUnavailable();
+  const name = cleanName(body.name);
+  const thumb = cleanThumb(body.thumb);
+  const now = new Date().toISOString();
+
+  if (body.id !== undefined && body.id !== null && body.id !== "") {
+    if (!isTownId(body.id)) return fail("Invalid town id", 400);
+    const [existing] = await db.select().from(towns).where(eq(towns.id, body.id)).limit(1);
+    if (!existing) return fail("Town not found", 404);
+    if (existing.ownerId !== viewer.ownerId) return fail("This town belongs to someone else", 403);
+
+    await db
+      .update(towns)
+      .set({
+        name,
+        data: checked.text,
+        brickCount: checked.bricks,
+        thumb: thumb ?? existing.thumb,
+        visibility: cleanVisibility(body.visibility, existing.visibility as never),
+        ownerName: viewer.ownerName,
+        updatedAt: now,
+      })
+      .where(eq(towns.id, body.id));
+
+    return Response.json({ id: body.id, name, brickCount: checked.bricks, updated: true });
+  }
+
+  const id = newTownId();
+  await db.insert(towns).values({
+    id,
+    ownerId: viewer.ownerId,
+    ownerName: viewer.ownerName,
+    name,
+    data: checked.text,
+    brickCount: checked.bricks,
+    thumb,
+    visibility: cleanVisibility(body.visibility, "private"),
+    createdAt: now,
+    updatedAt: now,
+  });
+
+  return Response.json({ id, name, brickCount: checked.bricks, updated: false }, { status: 201 });
+}

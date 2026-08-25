@@ -2,13 +2,14 @@
 /* eslint-disable @next/next/no-img-element */
 
 import { useEffect, useRef, useState } from "react";
+import TownBar from "./TownBar";
 
 type CityView = "city" | "resident" | "rail" | "tour" | "inspect";
 type DemoWorld = "city1" | "city2" | "indian" | "royal" | "skyrail";
 type ResidentDestination = "home" | "restaurant" | "hotel" | "palace" | "temple" | "bazaar" | "stepwell" | "ghats";
 type ForgeBrick = { typeId: string };
 type TownPermissions = { copyAllowed: boolean; attribution: string };
-type ForgeApi = { bricks: () => ForgeBrick[]; mode: () => "build" | "play"; clearAll: (record?: boolean) => void; setMode: (mode: "build" | "play") => void; setShowcaseMode: (locked: boolean) => void; setDemoCity: (name: DemoWorld) => void; loadShowcaseWorld: (data: unknown, name: DemoWorld) => boolean; setView: (view: CityView) => boolean; setResidentDestination: (name: ResidentDestination) => void; enterMyTownResident: () => boolean; visitMyTownBuilding: (name: string) => boolean; setRailLook: (yaw: number, pitch?: number) => void; setWeather: (name: "clear" | "rain" | "snow" | "fog") => void; saveLocalTown: () => boolean; loadLocalTown: () => boolean; startHomePlot: () => boolean; expandHomePlot: () => string; placeBlueprint: (name: string) => boolean; loadWorldLayout: (name: string) => boolean; copyDemoCity: () => boolean; setTownCopyAllowed: (allowed: boolean) => boolean; townPermissions: () => TownPermissions; };
+type ForgeApi = { bricks: () => ForgeBrick[]; mode: () => "build" | "play"; clearAll: (record?: boolean) => void; setMode: (mode: "build" | "play") => void; setShowcaseMode: (locked: boolean) => void; setDemoCity: (name: DemoWorld) => void; loadShowcaseWorld: (data: unknown, name: DemoWorld) => boolean; setView: (view: CityView) => boolean; setResidentDestination: (name: ResidentDestination) => void; enterMyTownResident: () => boolean; visitMyTownBuilding: (name: string) => boolean; setRailLook: (yaw: number, pitch?: number) => void; setWeather: (name: "clear" | "rain" | "snow" | "fog") => void; saveLocalTown: () => boolean; loadLocalTown: () => boolean; startHomePlot: () => boolean; expandHomePlot: () => string; placeBlueprint: (name: string) => boolean; loadWorldLayout: (name: string) => boolean; copyDemoCity: () => boolean; setTownCopyAllowed: (allowed: boolean) => boolean; townPermissions: () => TownPermissions; exportTown?: () => unknown; importTown?: (data: unknown) => boolean; snapshot?: (width?: number) => string; };
 type BuilderWindow = Window & { brickforge?: ForgeApi };
 
 const missions = [
@@ -213,6 +214,7 @@ export default function Home() {
             <button className="cta primary-cta" onClick={() => begin("challenge")}>Start the guided build <span>→</span></button>
             <button className="cta secondary-cta" onClick={() => begin("free")}>Explore free build</button>
             <a className="cta world-cta" href="/worldforge.html">Play Open World Alpha</a>
+            <a className="cta world-cta" href="/frontier.html">Play Deep World (new engine)</a>
             <a className="cta world-cta" href="/infinite-plots.html">Claim an Empty Plot</a>
           </div>
           <div className="trust-row"><span><b>01</b> Pick a piece</span><span><b>02</b> Build anything</span><span><b>03</b> Press play</span></div>
@@ -241,7 +243,7 @@ export default function Home() {
         <article><span className="mode-number">01</span><h2>Build a city from scratch</h2><p>Follow four clear steps to lay roads, connect power, build a home and bring your first neighbourhood to life.</p><button onClick={() => begin("challenge")}>Start city school →</button></article>
         <article><span className="mode-number">02</span><h2>Everything unlocked</h2><p>Use every brick, city module, vehicle, utility and terrain piece during Early Builder Access.</p><button onClick={() => begin("free")}>Open the full sandbox →</button></article>
         <article><span className="mode-number">03</span><h2>Grow your world</h2><p>Place editable blueprints side by side, expand the land, add water and experience rain, snow or fog.</p><button onClick={() => begin("free")}>Create my town →</button></article>
-        <article className="open-world-mode"><span className="mode-number">04</span><h2>Play Open World</h2><p>Enter a separate open-world creative game—the foundation for finite territories, resource discovery, trading and earned expansion.</p><a href="/worldforge.html">Enter creative alpha →</a></article>
+        <article className="open-world-mode"><span className="mode-number">04</span><h2>Play Open World</h2><p>Enter a separate open-world creative game—the foundation for finite territories, resource discovery, trading and earned expansion.</p><a href="/worldforge.html">Enter creative alpha →</a> <a href="/frontier.html">Deep World: endless voxel frontier →</a></article>
         <article className="open-world-mode"><span className="mode-number">05</span><h2>Build on Infinite Plots</h2><p>Enter a completely empty continuous world, occupy one generous 48 × 48 plot and build only inside your restricted space.</p><a href="/infinite-plots.html">Claim an empty plot →</a></article>
       </section>
       <footer>BrickLab is an original building-toy prototype and is not affiliated with the LEGO Group.</footer>
@@ -257,6 +259,7 @@ export default function Home() {
       </header>
       <section className="workspace">
         <iframe key={sessionKey} ref={frameRef} className="builder-frame" src={`/brickforge.html?engine=builder-library-v5&session=${sessionKey}`} title="BrickLab 3D building canvas" onLoad={onFrameLoad}/>
+        <TownBar getApi={() => api()} ready={ready}/>
         {mode === "challenge" && <aside className={`mission-panel ${panelOpen ? "open" : "closed"}`}>
           <button className="panel-toggle" onClick={() => setPanelOpen(v => !v)} aria-label="Toggle mission panel">{panelOpen ? "×" : "☰"}</button>
           {panelOpen && <>
