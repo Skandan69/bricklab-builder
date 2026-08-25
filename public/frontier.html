@@ -86,6 +86,67 @@
   .settler-card{background:rgba(255,255,255,.06);border:1px solid var(--line);border-radius:10px;padding:10px}
   .settler-card b{display:block;color:#ffd166}.settler-card small{display:block;opacity:.66;margin-top:3px}
   .shop-price{color:#ffd166;font-weight:800}
+
+  /* Full-screen Frontier entrance */
+  .card.title-card{width:100vw;height:100vh;max-height:none;padding:0;border:0;border-radius:0;overflow:auto;
+    background:radial-gradient(circle at 78% 4%,rgba(255,205,92,.22),transparent 27%),linear-gradient(145deg,#071728,#102b3d 48%,#173f41);
+    box-shadow:none}
+  .title-shell{min-height:100%;position:relative;overflow:hidden;padding:28px clamp(24px,5vw,86px) 34px;isolation:isolate}
+  .title-shell:before{content:"";position:absolute;inset:0;z-index:-3;opacity:.34;background-image:
+    linear-gradient(rgba(255,255,255,.035) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.035) 1px,transparent 1px);
+    background-size:32px 32px;mask-image:linear-gradient(to bottom,black,transparent 72%)}
+  .title-nav{display:flex;align-items:center;justify-content:space-between;gap:18px;margin-bottom:clamp(34px,6vh,74px)}
+  .frontier-brand{display:flex;align-items:center;gap:12px;color:#fff;text-decoration:none;font-weight:900;font-size:18px}
+  .frontier-mark{width:38px;height:38px;display:grid;place-items:center;border-radius:10px;color:#071728;
+    background:linear-gradient(135deg,#ffd166,#ff8d5c);box-shadow:0 10px 30px rgba(255,141,92,.23);transform:rotate(-4deg);font-size:21px}
+  .alpha-badge{border:1px solid rgba(255,255,255,.22);background:rgba(3,14,23,.35);border-radius:999px;padding:8px 13px;
+    text-transform:uppercase;letter-spacing:1.2px;font-size:10px;font-weight:800;color:#bfe8ff}
+  .title-hero{display:grid;grid-template-columns:minmax(0,1fr) minmax(360px,.82fr);gap:clamp(34px,7vw,110px);align-items:center;max-width:1440px;margin:0 auto}
+  .title-kicker{display:flex!important;align-items:center;gap:10px;margin:0 0 18px!important;color:#ffd166;font-size:11px!important;
+    font-weight:900;text-transform:uppercase;letter-spacing:2.4px;opacity:1!important}
+  .title-kicker:before{content:"";width:34px;height:3px;background:#ff6b4a;border-radius:3px}
+  .title-copy h1{max-width:800px;margin:0!important;font-size:clamp(48px,6.3vw,96px)!important;line-height:.92;letter-spacing:-4.5px;font-weight:900}
+  .title-copy h1 em{font-style:normal;color:#7cc4ff;display:block}
+  .title-lede{max-width:680px;margin:25px 0 22px!important;color:#c8d8e7;font-size:clamp(15px,1.3vw,19px)!important;line-height:1.6;opacity:1!important}
+  .title-pills{display:flex;gap:8px;flex-wrap:wrap}.title-pills span{padding:7px 11px;border:1px solid rgba(255,255,255,.17);
+    border-radius:999px;background:rgba(5,19,31,.42);color:#e9f4ff;font-size:11px;font-weight:700}
+  .title-art{height:clamp(330px,43vw,540px);position:relative;border-radius:30px;overflow:hidden;border:1px solid rgba(255,255,255,.2);
+    background:linear-gradient(#7cc4ff 0 48%,#e9c47b 48% 52%,#6aae49 52% 100%);box-shadow:0 38px 80px rgba(0,0,0,.36);transform:rotate(1deg)}
+  .title-art:before{content:"";position:absolute;left:-12%;right:-12%;bottom:-14%;height:55%;transform:perspective(420px) rotateX(58deg);
+    transform-origin:bottom;background:linear-gradient(90deg,transparent 47%,#d5bd7b 47% 53%,transparent 53%),
+      linear-gradient(transparent 47%,#d5bd7b 47% 53%,transparent 53%),#67a947;background-size:112px 112px;box-shadow:inset 0 18px 35px rgba(0,0,0,.16)}
+  .frontier-sun{position:absolute;right:12%;top:10%;width:74px;height:74px;border-radius:50%;background:#ffd166;box-shadow:0 0 50px rgba(255,209,102,.75)}
+  .voxel-hill{position:absolute;bottom:24%;background:#2f6945;box-shadow:inset -22px -18px 0 rgba(0,0,0,.12);
+    clip-path:polygon(0 100%,0 68%,18% 68%,18% 42%,38% 42%,38% 20%,62% 20%,62% 43%,80% 43%,80% 70%,100% 70%,100% 100%)}
+  .hill-one{left:-4%;width:58%;height:46%}.hill-two{right:-8%;width:55%;height:38%;background:#3e7b4e}
+  .voxel-tower{position:absolute;bottom:23%;width:16%;background:#c85d43;border:7px solid #f2b071;box-shadow:inset 0 0 0 7px #8d3f36,14px 18px 0 rgba(0,0,0,.15)}
+  .voxel-tower:before{content:"";position:absolute;left:-18%;right:-18%;top:-24px;height:24px;background:#ffe08a;
+    clip-path:polygon(0 100%,0 30%,18% 30%,18% 0,36% 0,36% 30%,64% 30%,64% 0,82% 0,82% 30%,100% 30%,100% 100%)}
+  .tower-one{left:20%;height:33%}.tower-two{left:41%;height:47%;background:#347d94}.tower-three{right:17%;height:39%;background:#a94e68}
+  .title-art-label{position:absolute;left:22px;right:22px;bottom:20px;padding:17px 19px;border:1px solid rgba(255,255,255,.25);
+    border-radius:16px;background:rgba(7,23,40,.8);backdrop-filter:blur(12px);display:grid;gap:2px}
+  .title-art-label small{color:#ffd166;text-transform:uppercase;letter-spacing:1.4px;font-weight:900}.title-art-label strong{font-size:22px}
+  .title-art-label span{color:#bed1df;font-size:12px}
+  .title-lower{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(290px,.7fr);gap:22px;max-width:1440px;margin:clamp(40px,7vh,82px) auto 0}
+  .world-picker,.quick-guide{border:1px solid rgba(255,255,255,.15);border-radius:22px;background:rgba(5,17,29,.58);backdrop-filter:blur(16px);padding:22px}
+  .section-heading{display:flex;align-items:end;justify-content:space-between;gap:16px;margin-bottom:15px}.section-heading span{font-size:20px;font-weight:900}
+  .section-heading small{color:#8facbd}.title-card #slots{grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+  .title-card .world-save-card{min-height:188px;padding:16px;align-items:stretch!important;border-radius:15px;
+    background:linear-gradient(145deg,rgba(255,255,255,.095),rgba(255,255,255,.035));transition:.18s}
+  .title-card .world-save-card:hover{transform:translateY(-3px);border-color:#7cc4ff;box-shadow:0 14px 28px rgba(0,0,0,.22)}
+  .title-card .world-save-card>b{font-size:16px}.title-card .world-save-card .row{margin-top:auto!important}.title-card .world-save-card button.primary{min-width:104px}
+  .quick-guide h2{margin:0 0 14px!important;color:#ffd166;opacity:1!important}.guide-steps{display:grid;gap:10px}
+  .guide-step{display:grid;grid-template-columns:32px 1fr;gap:10px;align-items:center;padding:10px;border-radius:12px;background:rgba(255,255,255,.055)}
+  .guide-step b{display:grid;place-items:center;width:32px;height:32px;border-radius:9px;background:#ff6b4a;color:#071728}
+  .guide-step strong{display:block}.guide-step small{color:#9fb4c4}.control-details{margin-top:13px;border-top:1px solid rgba(255,255,255,.12);padding-top:13px}
+  .control-details summary{cursor:pointer;font-weight:800;color:#7cc4ff}.control-details .keys{margin-top:13px;max-height:260px;overflow:auto}
+  .title-foot{max-width:1440px;margin:22px auto 0;display:flex;justify-content:space-between;gap:18px;color:#87a2b5;font-size:10px;text-transform:uppercase;letter-spacing:1px}
+  @media(max-width:980px){.title-hero,.title-lower{grid-template-columns:1fr}.title-art{height:390px}.title-copy h1{letter-spacing:-3px}
+    .title-card #slots{grid-template-columns:repeat(3,minmax(170px,1fr));overflow-x:auto}}
+  @media(max-width:620px){.title-shell{padding:20px 16px 28px}.title-nav{align-items:flex-start;margin-bottom:32px}.alpha-badge{max-width:150px;text-align:center}
+    .title-copy h1{font-size:48px!important;letter-spacing:-2.5px}.title-art{height:300px;border-radius:20px}.title-lower{margin-top:28px}
+    .title-card #slots{grid-template-columns:1fr;overflow:visible}.title-card .world-save-card{min-height:0}.section-heading{align-items:flex-start;flex-direction:column}
+    .title-foot{flex-direction:column}.world-picker,.quick-guide{padding:16px}}
 </style>
 </head>
 <body>
@@ -706,6 +767,7 @@ function craft(recipe) {
 }
 
 function openInventory() {
+  card.className = 'card';
   panelMode = 'inventory';
   const owned = [...inventory.entries()].filter(([,n]) => n > 0)
     .map(([id,n]) => `<div class="item"><span class="swatch" style="background:#${BLOCKS[id].colour.toString(16).padStart(6,'0')}"></span><span><b>${BLOCKS[id].name}</b><small class="muted"> × ${n}</small></span></div>`).join('');
@@ -731,6 +793,7 @@ function openInventory() {
   document.exitPointerLock && document.exitPointerLock();
 }
 function openJournal() {
+  card.className = 'card';
   panelMode = 'journal';
   const quest = RPG_QUESTS[rpg.questIndex];
   const jobs = SETTLEMENT_JOBS.map((job) => {
@@ -753,6 +816,7 @@ function openJournal() {
   document.exitPointerLock && document.exitPointerLock();
 }
 function openTradingPost() {
+  card.className = 'card';
   panelMode = 'trading';
   const offers = FRONTIER_SHOP.map((offer,index) => `<div class="recipe"><span><b>${offer.name}</b><small>Permanent inventory item</small></span><button data-offer="${index}" ${rpg.coins >= offer.price ? '' : 'disabled'}><span class="shop-price">${offer.price} marks</span></button></div>`).join('');
   card.innerHTML = `
@@ -926,40 +990,55 @@ let panelMode = 'title';
 
 function showTitle() {
   panelMode = 'title';
+  card.className = 'card title-card';
   const slots = Array.from({ length: SLOTS }, (_, i) => ({ i, info: slotSummary(i) }));
   card.innerHTML = `
-    <h1>BrickLab Frontier — Settlement RPG</h1>
-    <p class="muted">Play as a frontier builder: explore a finite wilderness, complete quests, level up and turn scarce resources into a living settlement.</p>
-    <h2>Your worlds</h2>
-    <div class="grid" id="slots"></div>
-    <h2>Controls</h2>
-    <div class="keys">
-      <b>W A S D</b><span>Walk. Hold <b>Shift</b> to sprint.</span>
-      <b>Space</b><span>Jump — or rise, when flying</span>
-      <b>Mouse</b><span>Look around</span>
-      <b>Hold left</b><span>Mine the block you are aiming at, or strike a creature</span>
-      <b>Right click</b><span>Place the block in hand, or eat what you are holding</span>
-      <b>1 – 9 / wheel</b><span>Choose a hotbar slot</span>
-      <b>E</b><span>Backpack and crafting</span>
-      <b>J</b><span>Quest journal and settlement jobs</span>
-      <b>T</b><span>Trading post and equipment</span>
-      <b>R</b><span>Talk when you are near Mira, Arun or Leela</span>
-      <b>M</b><span>Territory map and expansion</span>
-      <b>F</b><span>Creative flight on or off</span>
-      <b>Esc</b><span>Release the mouse</span>
-    </div>
-    <h2>Your first chapter</h2>
-    <p>Follow the quest card while you gather timber, learn crafting, lay a stone foundation, build shelter and defend the frontier. Each quest awards experience and frontier marks; progress is saved with your world.</p>
-    <h2>Getting started</h2>
-    <p>Punch a tree for logs, craft planks, then sticks, then a pickaxe. Stone gives cobble;
-       deeper down there is coal, copper, iron, gold and crystal. Grublings surface after dark
-       and stone-biters live in the caves — torches keep both away, so light your shelter before dusk.</p>
-    <p class="muted">Original BrickLab game. Not affiliated with any other block-building game.</p>`;
+    <main class="title-shell">
+      <header class="title-nav">
+        <a class="frontier-brand" href="/" aria-label="BrickLab home"><span class="frontier-mark">▦</span><span>BrickLab Frontier</span></a>
+        <span class="alpha-badge">Settlement RPG · Early frontier</span>
+      </header>
+      <section class="title-hero">
+        <div class="title-copy">
+          <p class="title-kicker">Explore · Build · Defend · Grow</p>
+          <h1>A wild world.<em>Your living frontier.</em></h1>
+          <p class="title-lede">Gather scarce materials, build a settlement with Mira, Arun and Leela, complete story quests and defend everything you create after nightfall.</p>
+          <div class="title-pills"><span>Finite wilderness</span><span>Story quests</span><span>Settler jobs</span><span>Creatures & caves</span><span>Creative flight</span></div>
+        </div>
+        <div class="title-art" role="img" aria-label="A colourful block-built frontier with hills and settlement towers">
+          <div class="frontier-sun"></div><div class="voxel-hill hill-one"></div><div class="voxel-hill hill-two"></div>
+          <div class="voxel-tower tower-one"></div><div class="voxel-tower tower-two"></div><div class="voxel-tower tower-three"></div>
+          <div class="title-art-label"><small>Your next chapter</small><strong>Founder's Valley</strong><span>Mine by day. Light the settlement before dusk.</span></div>
+        </div>
+      </section>
+      <section class="title-lower">
+        <div class="world-picker">
+          <div class="section-heading"><span>Choose your frontier</span><small>Three local save slots · progress stays in this browser</small></div>
+          <div class="grid title-world-grid" id="slots"></div>
+        </div>
+        <aside class="quick-guide">
+          <h2>How the adventure works</h2>
+          <div class="guide-steps">
+            <div class="guide-step"><b>1</b><span><strong>Gather</strong><small>Mine trees, stone and rare ore.</small></span></div>
+            <div class="guide-step"><b>2</b><span><strong>Build</strong><small>Turn an empty frontier into a home.</small></span></div>
+            <div class="guide-step"><b>3</b><span><strong>Grow</strong><small>Help settlers and earn frontier marks.</small></span></div>
+            <div class="guide-step"><b>4</b><span><strong>Defend</strong><small>Use light and shelter to survive the night.</small></span></div>
+          </div>
+          <details class="control-details"><summary>View all controls</summary><div class="keys">
+            <b>W A S D</b><span>Walk · hold Shift to sprint</span><b>Space</b><span>Jump or rise while flying</span>
+            <b>Mouse</b><span>Look around</span><b>Hold left</b><span>Mine or strike a creature</span>
+            <b>Right click</b><span>Place a block or eat</span><b>1 – 9</b><span>Choose a hotbar slot</span>
+            <b>E / J / T</b><span>Bag · quests · trading</span><b>R / M / F</b><span>Talk · map · creative flight</span>
+          </div></details>
+        </aside>
+      </section>
+      <footer class="title-foot"><span>Original BrickLab game · Built for creative explorers</span><span>Worlds save automatically every 45 seconds</span></footer>
+    </main>`;
 
   const holder = document.getElementById('slots');
   slots.forEach(({ i, info }) => {
     const box = document.createElement('div');
-    box.className = 'item';
+    box.className = 'item world-save-card';
     box.style.flexDirection = 'column';
     box.style.alignItems = 'stretch';
     box.innerHTML = info
@@ -971,7 +1050,7 @@ function showTitle() {
     row.style.marginTop = '8px';
     const play = document.createElement('button');
     play.className = 'primary';
-    play.textContent = info ? 'Continue' : 'New world';
+    play.textContent = info ? 'Continue adventure' : 'Create world';
     play.onclick = () => {
       activeSlot = i;
       if (info) { loadSlot(i); startGame(false); }
@@ -1043,6 +1122,7 @@ function showTitle() {
 }
 
 function openMap() {
+  card.className = 'card';
   panelMode = 'map';
   card.innerHTML = `
     <h1>${worldName}</h1>
@@ -1399,6 +1479,7 @@ function nearestSettler(maxDistance) {
   return nearest;
 }
 function talkToSettler(settler) {
+  card.className = 'card';
   if(!settler){say('Move closer to a settler');return false;}
   panelMode='dialogue';
   const job=SETTLEMENT_JOBS.find((item)=>item.settler===settler.spec.name);
