@@ -297,3 +297,15 @@ test("Frontier RPG Sprint 2 adds settlers, jobs, trade and a working inventory",
   assert.match(frontier, /if \(k === 'j'/);
   assert.match(frontier, /if \(k === 't'/);
 });
+
+
+test("Frontier performance regression guard uses adaptive and throttled streaming", async () => {
+  const frontier = await readFile(new URL("../public/frontier.html", import.meta.url), "utf8");
+  assert.match(frontier, /const LOW_POWER =/);
+  assert.match(frontier, /const RENDER_DIST = LOW_POWER \? 3 : 4/);
+  assert.match(frontier, /const STREAM_INTERVAL =/);
+  assert.match(frontier, /if \(streamTimer <= 0/);
+  assert.match(frontier, /lastSettlerPrompt/);
+  assert.match(frontier, /BrickLab Frontier needs WebGL/);
+  assert.match(frontier, /performance mode/);
+});
