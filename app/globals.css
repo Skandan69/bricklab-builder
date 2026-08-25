@@ -21,3 +21,29 @@
 .mode-grid{grid-template-columns:repeat(4,1fr)}.mode-grid article{padding-inline:28px}.mode-grid button,.mode-grid a{padding:0;border:0;background:none;font-weight:800;cursor:pointer;color:var(--blue);text-decoration:none}.open-world-mode{background:#eaf2ff!important}
 @media(max-width:980px){.mode-grid{grid-template-columns:repeat(2,1fr)}.mode-grid article:nth-child(2){border-right:0}.mode-grid article:nth-child(-n+2){border-bottom:2px solid var(--ink)}}
 @media(max-width:820px){.mode-grid{grid-template-columns:1fr}.mode-grid article{border-right:0!important;border-bottom:2px solid var(--ink)}.mode-grid article:last-child{border-bottom:0}}
+
+/* Three-game universe */
+.welcome-links{display:flex;gap:22px;align-items:center;margin-left:auto;margin-right:24px}
+.welcome-links a{color:var(--ink);text-decoration:none;font-size:12px;font-weight:800;letter-spacing:.05em;text-transform:uppercase}
+.welcome-links a:hover{text-decoration:underline;text-underline-offset:5px}
+.game-universe{padding:88px max(28px,calc((100vw - 1520px)/2));background:#111923;color:#f7f5ef;border-top:1px solid #111923;border-bottom:1px solid #111923}
+.universe-heading{display:grid;grid-template-columns:1fr 1fr;gap:28px;align-items:end;margin-bottom:34px}
+.universe-heading .eyebrow{grid-column:1/-1;color:#ffcb4a;margin:0}
+.universe-heading h2{font-size:clamp(42px,5vw,76px);line-height:.92;letter-spacing:-.06em;margin:0;max-width:700px}
+.universe-heading>p:last-child{font-size:17px;line-height:1.65;color:#bdc7d2;margin:0;max-width:620px}
+.universe-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
+.universe-card{min-height:460px;padding:24px;display:flex;flex-direction:column;border:1px solid rgba(255,255,255,.2);box-shadow:8px 8px 0 rgba(0,0,0,.35);position:relative;overflow:hidden}
+.universe-card:after{content:"";position:absolute;width:180px;height:180px;border:36px solid rgba(255,255,255,.07);border-radius:34px;right:-80px;top:60px;transform:rotate(18deg)}
+.cities-card{background:#ef4136}.frontier-card{background:#1c69e8}.plots-card{background:#168657}
+.universe-topline{display:flex;justify-content:space-between;align-items:center;text-transform:uppercase;letter-spacing:.08em;font-size:11px;font-weight:900;position:relative;z-index:1}
+.universe-topline b{border:1px solid currentColor;padding:5px 8px;border-radius:99px}
+.universe-number{font-size:58px;line-height:1;margin:38px 0 14px;opacity:.38;position:relative;z-index:1}
+.universe-card h3{font-size:clamp(27px,3vw,42px);line-height:1;letter-spacing:-.04em;margin:0 0 18px;max-width:330px;position:relative;z-index:1}
+.universe-card p{font-size:15px;line-height:1.55;margin:0 0 18px;max-width:390px;position:relative;z-index:1}
+.universe-card ul{margin:0 0 24px;padding-left:19px;font-size:13px;line-height:1.75;position:relative;z-index:1}
+.universe-actions{margin-top:auto;display:flex;gap:10px;align-items:center;flex-wrap:wrap;position:relative;z-index:1}
+.universe-actions a,.universe-actions button{border:1px solid #fff;background:#fff;color:#111923;padding:12px 15px;font-weight:900;text-decoration:none;cursor:pointer;font:inherit}
+.universe-actions a:not(.primary-link){background:transparent;color:#fff}
+.universe-roadmap{margin:28px 0 0;color:#bdc7d2;font-size:13px;text-align:center}
+.universe-roadmap b{color:#fff}
+@media(max-width:900px){.welcome-links{display:none}.universe-heading{grid-template-columns:1fr}.universe-grid{grid-template-columns:1fr}.universe-card{min-height:390px}.game-universe{padding:64px 20px}}
