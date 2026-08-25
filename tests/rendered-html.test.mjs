@@ -276,3 +276,24 @@ test("Frontier includes a saved RPG quest and progression loop", async () => {
   assert.match(frontier, /questEvent\('place'/);
   assert.match(frontier, /questEvent\('defeat'/);
 });
+
+
+test("Frontier RPG Sprint 2 adds settlers, jobs, trade and a working inventory", async () => {
+  const frontier = await readFile(new URL("../public/frontier.html", import.meta.url), "utf8");
+  assert.match(frontier, /function openInventory/);
+  assert.match(frontier, /const SETTLERS =/);
+  assert.match(frontier, /Mira/);
+  assert.match(frontier, /Arun/);
+  assert.match(frontier, /Leela/);
+  assert.match(frontier, /function spawnSettlers/);
+  assert.match(frontier, /function talkToSettler/);
+  assert.match(frontier, /const SETTLEMENT_JOBS =/);
+  assert.match(frontier, /function completeSettlementJob/);
+  assert.match(frontier, /const FRONTIER_SHOP =/);
+  assert.match(frontier, /function buyFromTradingPost/);
+  assert.match(frontier, /function openJournal/);
+  assert.match(frontier, /function openTradingPost/);
+  assert.match(frontier, /if \(k === 'r'/);
+  assert.match(frontier, /if \(k === 'j'/);
+  assert.match(frontier, /if \(k === 't'/);
+});
