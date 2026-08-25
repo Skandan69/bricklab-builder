@@ -1,0 +1,1551 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BrickLab Frontier — Deep World alpha</title>
+<style>
+  :root{ --ink:#0e1520; --panel:rgba(14,21,32,.86); --line:rgba(255,255,255,.16); --hi:#7cc4ff; }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;overflow:hidden;background:#8fd0ff;color:#eef4fb;
+    font:13px/1.45 ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+    -webkit-font-smoothing:antialiased;user-select:none}
+  canvas{display:block}
+  .hidden{display:none!important}
+
+  #crosshair{position:fixed;left:50%;top:50%;width:20px;height:20px;margin:-10px 0 0 -10px;
+    pointer-events:none;opacity:.85}
+  #crosshair:before,#crosshair:after{content:"";position:absolute;background:#fff;
+    box-shadow:0 0 2px rgba(0,0,0,.7)}
+  #crosshair:before{left:9px;top:2px;width:2px;height:16px}
+  #crosshair:after{top:9px;left:2px;height:2px;width:16px}
+
+  #hotbar{position:fixed;left:50%;bottom:16px;transform:translateX(-50%);display:flex;gap:5px;
+    padding:6px;background:var(--panel);border:1px solid var(--line);border-radius:12px}
+  .slot{width:52px;height:52px;border-radius:9px;border:2px solid transparent;background:rgba(255,255,255,.08);
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;position:relative}
+  .slot.on{border-color:var(--hi);background:rgba(124,196,255,.18)}
+  .swatch{width:24px;height:24px;border-radius:5px;box-shadow:inset 0 -6px 8px rgba(0,0,0,.28)}
+  .count{position:absolute;right:4px;bottom:2px;font:700 11px ui-monospace,monospace;
+    text-shadow:0 1px 2px #000}
+  .slot small{font-size:9px;opacity:.75;line-height:1;text-align:center;max-width:48px;
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+  #stats{position:fixed;left:14px;top:12px;background:var(--panel);border:1px solid var(--line);
+    border-radius:10px;padding:8px 11px;font:11.5px/1.5 ui-monospace,monospace;min-width:150px}
+  #vitals{position:fixed;right:14px;top:12px;background:var(--panel);border:1px solid var(--line);
+    border-radius:10px;padding:8px 11px;min-width:150px}
+  .bar{height:9px;border-radius:5px;background:rgba(255,255,255,.16);overflow:hidden;margin:3px 0 8px}
+  .bar i{display:block;height:100%;border-radius:5px;transition:width .18s}
+  .bar.health i{background:linear-gradient(90deg,#ff5a5a,#ff8f6b)}
+  .bar.food i{background:linear-gradient(90deg,#f0a93b,#ffd166)}
+  #vitals label{font-size:10.5px;letter-spacing:.6px;text-transform:uppercase;opacity:.7}
+
+  #hint{position:fixed;left:50%;top:22px;transform:translateX(-50%);background:var(--panel);
+    border:1px solid var(--line);border-radius:20px;padding:6px 14px;font-size:12px;opacity:0;
+    transition:opacity .25s;pointer-events:none}
+  #hint.show{opacity:1}
+
+  #panel{position:fixed;inset:0;background:rgba(6,11,18,.72);backdrop-filter:blur(4px);
+    display:flex;align-items:center;justify-content:center;z-index:20}
+  .card{background:#111a26;border:1px solid var(--line);border-radius:16px;padding:22px 24px;
+    width:min(94vw,720px);max-height:88vh;overflow:auto;box-shadow:0 30px 70px rgba(0,0,0,.5)}
+  .card h1{margin:0 0 4px;font-size:19px}
+  .card h2{margin:20px 0 8px;font-size:13px;letter-spacing:.8px;text-transform:uppercase;opacity:.7}
+  .card p{margin:6px 0;opacity:.85}
+  .keys{display:grid;grid-template-columns:auto 1fr;gap:5px 14px;font-size:12.5px}
+  .keys b{font:700 11px ui-monospace,monospace;background:rgba(255,255,255,.1);
+    border:1px solid var(--line);border-radius:5px;padding:2px 7px;justify-self:start}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(128px,1fr));gap:8px}
+  .item{display:flex;align-items:center;gap:8px;background:rgba(255,255,255,.06);
+    border:1px solid var(--line);border-radius:9px;padding:7px 9px;font-size:12px}
+  .recipe{display:flex;align-items:center;justify-content:space-between;gap:10px;
+    background:rgba(255,255,255,.06);border:1px solid var(--line);border-radius:9px;padding:8px 10px}
+  .recipe small{display:block;opacity:.7;font-size:11px}
+  button{font:inherit;color:inherit;cursor:pointer;background:rgba(255,255,255,.1);
+    border:1px solid var(--line);border-radius:9px;padding:7px 13px;transition:.12s}
+  button:hover:not(:disabled){border-color:var(--hi);color:var(--hi)}
+  button:disabled{opacity:.35;cursor:default}
+  button.primary{background:var(--hi);border-color:var(--hi);color:#06121f;font-weight:700}
+  .row{display:flex;gap:8px;flex-wrap:wrap;margin-top:16px}
+  .muted{opacity:.6;font-size:11.5px}
+</style>
+</head>
+<body>
+<div id="crosshair" class="hidden"></div>
+
+<div id="stats" class="hidden">
+  <div>fps <span id="fps">–</span></div>
+  <div>xyz <span id="pos">–</span></div>
+  <div>chunks <span id="chunks">–</span></div>
+  <div>faces <span id="faces">–</span></div>
+  <div>time <span id="clock">–</span></div>
+  <div>land <span id="land">–</span></div>
+</div>
+
+<div id="vitals" class="hidden">
+  <label>Health</label><div class="bar health"><i id="healthBar" style="width:100%"></i></div>
+  <label>Food</label><div class="bar food"><i id="foodBar" style="width:100%"></i></div>
+  <div class="muted" id="mode">Survival</div>
+</div>
+
+<div id="hint"></div>
+<div id="hotbar" class="hidden"></div>
+
+<div id="panel">
+  <div class="card" id="card"></div>
+</div>
+
+<script src="/three.min.js"></script>
+<script>
+/* =========================================================================
+   BrickLab Frontier — Deep World
+   An original voxel sandbox: chunked terrain, face-culled meshing, mining
+   with hardness, crafting and a day/night cycle. No third-party game assets.
+   ========================================================================= */
+(function () {
+'use strict';
+
+/* ----------------------------------------------------------------- config */
+const CHUNK_X = 16, CHUNK_Y = 96, CHUNK_Z = 16;
+const SEA_LEVEL = 32;
+const RENDER_DIST = 6;              // chunks in each direction
+const GEN_BUDGET = 2;               // chunks generated per frame
+const MESH_BUDGET = 3;              // chunk meshes rebuilt per frame
+const SAVE_KEY = 'bricklab-frontier-v1';
+const DAY_LENGTH = 600;             // seconds for a full day
+
+/* ------------------------------------------------------------------ blocks
+   id 0 is air. `hard` is seconds to break bare-handed; `tool` names the tool
+   family that speeds it up; `drop` is what lands in the bag. */
+const BLOCKS = [
+  null,
+  { id:1,  name:'Grass',      colour:0x6cbf4a, side:0x8a6a44, hard:0.6, tool:'shovel', drop:2 },
+  { id:2,  name:'Soil',       colour:0x8a6a44, hard:0.6, tool:'shovel' },
+  { id:3,  name:'Stone',      colour:0x8d949d, hard:1.9, tool:'pick', drop:4 },
+  { id:4,  name:'Cobble',     colour:0x7d848d, hard:2.1, tool:'pick' },
+  { id:5,  name:'Sand',       colour:0xe4d5a1, hard:0.5, tool:'shovel' },
+  { id:6,  name:'Log',        colour:0x6b4a2c, side:0x7d5836, hard:1.6, tool:'axe' },
+  { id:7,  name:'Leaves',     colour:0x4f9b3d, hard:0.3 },
+  { id:8,  name:'Water',      colour:0x2f7fd4, liquid:true, hard:0 },
+  { id:9,  name:'Snow',       colour:0xf2f6fb, hard:0.5, tool:'shovel' },
+  { id:10, name:'Coal ore',   colour:0x4a4f57, hard:2.6, tool:'pick', drop:16 },
+  { id:11, name:'Copper ore', colour:0xb4744a, hard:2.9, tool:'pick', drop:17 },
+  { id:12, name:'Iron ore',   colour:0xc0a48c, hard:3.2, tool:'pick', drop:18 },
+  { id:13, name:'Gold ore',   colour:0xd9b23f, hard:3.4, tool:'pick', drop:19 },
+  { id:14, name:'Crystal',    colour:0x6fd8e0, hard:3.8, tool:'pick', drop:20 },
+  { id:15, name:'Planks',     colour:0xb08149, hard:1.4, tool:'axe' },
+  { id:16, name:'Coal',       colour:0x2f333a, item:true },
+  { id:17, name:'Copper',     colour:0xc07a4c, item:true },
+  { id:18, name:'Iron',       colour:0xd6c1aa, item:true },
+  { id:19, name:'Gold',       colour:0xf0c74a, item:true },
+  { id:20, name:'Crystal',    colour:0x8fe6ec, item:true },
+  { id:21, name:'Stick',      colour:0x9a7043, item:true },
+  { id:22, name:'Workbench',  colour:0xa9743d, side:0x8d5f31, hard:1.6, tool:'axe' },
+  { id:23, name:'Torch',      colour:0xffd479, hard:0.1, glow:true },
+  { id:24, name:'Glass',      colour:0xbfe8ff, hard:0.6, alpha:0.42 },
+  { id:25, name:'Brick',      colour:0xb1553f, hard:2.2, tool:'pick' },
+  { id:26, name:'Wood pick',  colour:0xb08149, item:true, tool:'pick',   power:2, uses:60 },
+  { id:27, name:'Stone pick', colour:0x8d949d, item:true, tool:'pick',   power:4, uses:130 },
+  { id:28, name:'Iron pick',  colour:0xd6c1aa, item:true, tool:'pick',   power:6, uses:250 },
+  { id:29, name:'Wood axe',   colour:0xb08149, item:true, tool:'axe',    power:2, uses:60 },
+  { id:30, name:'Stone axe',  colour:0x8d949d, item:true, tool:'axe',    power:4, uses:130 },
+  { id:31, name:'Shovel',     colour:0x8d949d, item:true, tool:'shovel', power:4, uses:130 },
+  { id:32, name:'Bread',      colour:0xd9a05b, item:true, food:6 },
+];
+
+const isSolid = (id) => id > 0 && !BLOCKS[id].liquid && !BLOCKS[id].item;
+const isOpaque = (id) => isSolid(id) && !BLOCKS[id].alpha;
+const PLACEABLE = [1,2,3,4,5,6,7,9,15,22,23,24,25];
+
+/* ------------------------------------------------------------------ noise
+   Deterministic value noise — same seed always yields the same world. */
+let SEED = 1337;
+function hash3(x, y, z) {
+  let h = x * 374761393 + y * 668265263 + z * 1274126177 + SEED * 2654435761;
+  h = (h ^ (h >>> 13)) >>> 0;
+  h = Math.imul(h, 1274126177) >>> 0;
+  return ((h ^ (h >>> 16)) >>> 0) / 4294967295;
+}
+const smooth = (t) => t * t * (3 - 2 * t);
+function value2(x, z) {
+  const xi = Math.floor(x), zi = Math.floor(z);
+  const xf = smooth(x - xi), zf = smooth(z - zi);
+  const a = hash3(xi, 0, zi), b = hash3(xi + 1, 0, zi);
+  const c = hash3(xi, 0, zi + 1), d = hash3(xi + 1, 0, zi + 1);
+  return (a + (b - a) * xf) * (1 - zf) + (c + (d - c) * xf) * zf;
+}
+function value3(x, y, z) {
+  const xi = Math.floor(x), yi = Math.floor(y), zi = Math.floor(z);
+  const xf = smooth(x - xi), yf = smooth(y - yi), zf = smooth(z - zi);
+  const lerp = (a, b, t) => a + (b - a) * t;
+  const c00 = lerp(hash3(xi, yi, zi), hash3(xi + 1, yi, zi), xf);
+  const c10 = lerp(hash3(xi, yi + 1, zi), hash3(xi + 1, yi + 1, zi), xf);
+  const c01 = lerp(hash3(xi, yi, zi + 1), hash3(xi + 1, yi, zi + 1), xf);
+  const c11 = lerp(hash3(xi, yi + 1, zi + 1), hash3(xi + 1, yi + 1, zi + 1), xf);
+  return lerp(lerp(c00, c10, yf), lerp(c01, c11, yf), zf);
+}
+function fbm2(x, z, octaves, scale) {
+  let sum = 0, amp = 1, norm = 0, f = scale;
+  for (let i = 0; i < octaves; i++) {
+    sum += value2(x * f, z * f) * amp;
+    norm += amp; amp *= 0.5; f *= 2;
+  }
+  return sum / norm;
+}
+
+/* --------------------------------------------------------------- terrain */
+const BIOMES = { plains:0, forest:1, desert:2, peaks:3, tundra:4 };
+function biomeAt(x, z) {
+  const temp = fbm2(x + 4000, z - 2200, 3, 0.028);
+  const wet = fbm2(x - 8800, z + 6400, 3, 0.025);
+  const alt = fbm2(x, z, 4, 0.017);
+  if (alt > 0.62) return BIOMES.peaks;
+  if (temp < 0.38) return BIOMES.tundra;
+  if (temp > 0.62 && wet < 0.45) return BIOMES.desert;
+  if (wet > 0.55) return BIOMES.forest;
+  return BIOMES.plains;
+}
+function heightAt(x, z) {
+  const base = fbm2(x, z, 5, 0.038);
+  const ridge = Math.pow(fbm2(x + 999, z - 999, 4, 0.017), 2.2);
+  const biome = biomeAt(x, z);
+  let h = 18 + base * 26 + ridge * 34;
+  if (biome === BIOMES.peaks) h += 16;
+  if (biome === BIOMES.desert) h = 33 + base * 9;
+  return Math.max(4, Math.min(CHUNK_Y - 8, Math.round(h)));
+}
+/* Two noise fields; where both sit near their midline the rock is carved away.
+   That intersection makes winding tunnels rather than round blobs, and the
+   threshold is a direct dial on how much of the underground is open. */
+function caveAt(x, y, z) {
+  if (y < 3 || y > 58) return false;
+  const a = value3(x * 0.055, y * 0.085, z * 0.055);
+  const b = value3(x * 0.031 + 71, y * 0.05 + 13, z * 0.031 - 44);
+  const seam = Math.abs(a - 0.5) + Math.abs(b - 0.5);
+  const depth = y < 12 ? 0.115 : 0.085;      // ~9% open deep down, ~5% higher up
+  return seam < depth;
+}
+function oreAt(x, y, z) {
+  if (y > 46) return 0;
+  const v = value3(x * 0.13 + 3, y * 0.13 - 7, z * 0.13 + 11);
+  if (v < 0.74) return 0;
+  if (y < 10 && v > 0.86) return 14;         // crystal, deep only
+  if (y < 18 && v > 0.83) return 13;         // gold
+  if (y < 30 && v > 0.8) return 12;          // iron
+  if (y < 38 && v > 0.78) return 11;         // copper
+  return 10;                                  // coal
+}
+
+/* ----------------------------------------------------------------- world */
+let worldName = 'First Frontier';
+const chunks = new Map();
+const edits = new Map();                     // "x,y,z" -> id, the only thing saved
+const ckey = (cx, cz) => cx + ',' + cz;
+const vkey = (x, y, z) => x + ',' + y + ',' + z;
+
+function makeChunk(cx, cz) {
+  return { cx, cz, data: new Uint8Array(CHUNK_X * CHUNK_Y * CHUNK_Z),
+           generated: false, dirty: true, mesh: null, water: null, faces: 0 };
+}
+const idx = (lx, y, lz) => (lx * CHUNK_Z + lz) * CHUNK_Y + y;
+
+function generateChunk(chunk) {
+  const { cx, cz, data } = chunk;
+  for (let lx = 0; lx < CHUNK_X; lx++) {
+    const x = cx * CHUNK_X + lx;
+    for (let lz = 0; lz < CHUNK_Z; lz++) {
+      const z = cz * CHUNK_Z + lz;
+      if (!inTerritory(x, z)) continue;          // beyond the frontier there is nothing
+      const h = heightAt(x, z);
+      const biome = biomeAt(x, z);
+      for (let y = 0; y <= Math.max(h, SEA_LEVEL); y++) {
+        let id = 0;
+        if (y === 0) id = 4;
+        else if (y < h - 4) id = oreAt(x, y, z) || 3;
+        else if (y < h) id = biome === BIOMES.desert ? 5 : 2;
+        else if (y === h) {
+          if (biome === BIOMES.desert) id = 5;
+          else if (biome === BIOMES.tundra || biome === BIOMES.peaks) id = h > 52 ? 9 : 1;
+          else id = 1;
+          if (h < SEA_LEVEL) id = 5;
+        }
+        if (id && y > 0 && caveAt(x, y, z)) id = 0;
+        // the sea fills from the land surface upwards — never the caves below it
+        if (!id && y <= SEA_LEVEL && y > h) id = 8;
+        if (id) data[idx(lx, y, lz)] = id;
+      }
+      // trees, deterministic per column
+      const treeRoll = hash3(x, 7, z);
+      const treeChance = biome === BIOMES.forest ? 0.045 : biome === BIOMES.plains ? 0.008 : 0;
+      if (treeRoll < treeChance && h > SEA_LEVEL && h < 60 && lx > 1 && lx < 14 && lz > 1 && lz < 14) {
+        const trunk = 4 + Math.floor(hash3(x, 8, z) * 3);
+        for (let i = 1; i <= trunk; i++) data[idx(lx, h + i, lz)] = 6;
+        for (let dx = -2; dx <= 2; dx++) for (let dz = -2; dz <= 2; dz++) for (let dy = -1; dy <= 2; dy++) {
+          const d = Math.abs(dx) + Math.abs(dz) + Math.abs(dy);
+          if (d > 3) continue;
+          const nx = lx + dx, nz = lz + dz, ny = h + trunk + dy;
+          if (nx < 0 || nz < 0 || nx >= CHUNK_X || nz >= CHUNK_Z || ny >= CHUNK_Y) continue;
+          if (!data[idx(nx, ny, nz)]) data[idx(nx, ny, nz)] = 7;
+        }
+      }
+    }
+  }
+  // re-apply anything the player changed here
+  edits.forEach((id, k) => {
+    const [x, y, z] = k.split(',').map(Number);
+    if (Math.floor(x / CHUNK_X) === cx && Math.floor(z / CHUNK_Z) === cz && y >= 0 && y < CHUNK_Y) {
+      data[idx(((x % CHUNK_X) + CHUNK_X) % CHUNK_X, y, ((z % CHUNK_Z) + CHUNK_Z) % CHUNK_Z)] = id;
+    }
+  });
+  chunk.generated = true;
+}
+
+function getBlock(x, y, z) {
+  if (y < 0 || y >= CHUNK_Y) return 0;
+  const cx = Math.floor(x / CHUNK_X), cz = Math.floor(z / CHUNK_Z);
+  const chunk = chunks.get(ckey(cx, cz));
+  if (!chunk || !chunk.generated) return 0;
+  const lx = ((x % CHUNK_X) + CHUNK_X) % CHUNK_X;
+  const lz = ((z % CHUNK_Z) + CHUNK_Z) % CHUNK_Z;
+  return chunk.data[idx(lx, y, lz)];
+}
+function setBlock(x, y, z, id, record) {
+  if (y < 0 || y >= CHUNK_Y) return false;
+  const cx = Math.floor(x / CHUNK_X), cz = Math.floor(z / CHUNK_Z);
+  const chunk = chunks.get(ckey(cx, cz));
+  if (!chunk || !chunk.generated) return false;
+  const lx = ((x % CHUNK_X) + CHUNK_X) % CHUNK_X;
+  const lz = ((z % CHUNK_Z) + CHUNK_Z) % CHUNK_Z;
+  chunk.data[idx(lx, y, lz)] = id;
+  chunk.dirty = true;
+  if (record !== false) edits.set(vkey(x, y, z), id);
+  // a change on a seam dirties the neighbour too
+  if (lx === 0) markDirty(cx - 1, cz);
+  if (lx === CHUNK_X - 1) markDirty(cx + 1, cz);
+  if (lz === 0) markDirty(cx, cz - 1);
+  if (lz === CHUNK_Z - 1) markDirty(cx, cz + 1);
+  return true;
+}
+function markDirty(cx, cz) {
+  const c = chunks.get(ckey(cx, cz));
+  if (c) c.dirty = true;
+}
+
+/* ---------------------------------------------------------------- meshing
+   One geometry per chunk, and only the faces that touch air. Vertex colours
+   carry the block colour and the per-face shading, so there are no textures
+   and a single material draws the whole world. */
+const FACES = [
+  { dir:[ 1,0,0], shade:0.82, corners:[[1,0,0],[1,1,0],[1,1,1],[1,0,1]] },
+  { dir:[-1,0,0], shade:0.78, corners:[[0,0,1],[0,1,1],[0,1,0],[0,0,0]] },
+  { dir:[0, 1,0], shade:1.00, corners:[[0,1,0],[0,1,1],[1,1,1],[1,1,0]] },
+  { dir:[0,-1,0], shade:0.55, corners:[[0,0,1],[0,0,0],[1,0,0],[1,0,1]] },
+  { dir:[0,0, 1], shade:0.88, corners:[[1,0,1],[1,1,1],[0,1,1],[0,0,1]] },
+  { dir:[0,0,-1], shade:0.72, corners:[[0,0,0],[0,1,0],[1,1,0],[1,0,0]] },
+];
+
+/* the renderer encodes to sRGB on the way out, so feed it linear colour */
+const toLinear = (c) => (c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4));
+
+function meshChunk(chunk) {
+  const solid = { pos: [], norm: [], col: [] };
+  const fluid = { pos: [], norm: [], col: [] };
+  const baseX = chunk.cx * CHUNK_X, baseZ = chunk.cz * CHUNK_Z;
+  let faces = 0;
+
+  for (let lx = 0; lx < CHUNK_X; lx++) {
+    for (let lz = 0; lz < CHUNK_Z; lz++) {
+      for (let y = 0; y < CHUNK_Y; y++) {
+        const id = chunk.data[idx(lx, y, lz)];
+        if (!id) continue;
+        const block = BLOCKS[id];
+        const x = baseX + lx, z = baseZ + lz;
+        const target = block.liquid ? fluid : solid;
+        for (const face of FACES) {
+          const nx = x + face.dir[0], ny = y + face.dir[1], nz = z + face.dir[2];
+          const neighbour = getBlock(nx, ny, nz);
+          if (block.liquid) {
+            if (neighbour === id || isOpaque(neighbour)) continue;
+          } else if (isOpaque(neighbour) || (neighbour === id && block.alpha)) {
+            continue;
+          }
+          const top = face.dir[1] === 1;
+          const hex = (!top && block.side !== undefined) ? block.side : block.colour;
+          // a touch of per-voxel variation so flat ground is not a dead sheet
+          const jitter = 0.94 + hash3(x, y * 3, z) * 0.12;
+          const shade = face.shade * jitter;
+          const r = toLinear(((hex >> 16) & 255) / 255) * shade;
+          const g = toLinear(((hex >> 8) & 255) / 255) * shade;
+          const b = toLinear((hex & 255) / 255) * shade;
+          const [a1, a2, a3, a4] = face.corners;
+          const quad = [a1, a2, a3, a1, a3, a4];
+          for (const c of quad) {
+            target.pos.push(x + c[0], y + c[1], z + c[2]);
+            target.norm.push(face.dir[0], face.dir[1], face.dir[2]);
+            target.col.push(r, g, b);
+          }
+          faces++;
+        }
+      }
+    }
+  }
+  chunk.faces = faces;
+  applyGeometry(chunk, 'mesh', solid, opaqueMaterial);
+  applyGeometry(chunk, 'water', fluid, waterMaterial);
+  chunk.dirty = false;
+}
+
+function applyGeometry(chunk, slot, buf, material) {
+  if (chunk[slot]) { scene.remove(chunk[slot]); chunk[slot].geometry.dispose(); chunk[slot] = null; }
+  if (!buf.pos.length) return;
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(buf.pos, 3));
+  g.setAttribute('normal', new THREE.Float32BufferAttribute(buf.norm, 3));
+  g.setAttribute('color', new THREE.Float32BufferAttribute(buf.col, 3));
+  g.computeBoundingSphere();
+  const mesh = new THREE.Mesh(g, material);
+  mesh.frustumCulled = true;
+  scene.add(mesh);
+  chunk[slot] = mesh;
+}
+
+/* ------------------------------------------------------------------ scene */
+const scene = new THREE.Scene();
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+renderer.outputEncoding = THREE.sRGBEncoding;
+document.body.appendChild(renderer.domElement);
+
+const camera = new THREE.PerspectiveCamera(72, innerWidth / innerHeight, 0.1, 1000);
+const opaqueMaterial = new THREE.MeshLambertMaterial({ vertexColors: true });
+const waterMaterial = new THREE.MeshLambertMaterial({
+  vertexColors: true, transparent: true, opacity: 0.72, depthWrite: false });
+
+const sun = new THREE.DirectionalLight(0xffffff, 0.9);
+const sky = new THREE.HemisphereLight(0xbfe4ff, 0x51606e, 0.6);
+scene.add(sun, sky, sun.target);
+scene.fog = new THREE.Fog(0x8fd0ff, RENDER_DIST * CHUNK_X * 0.55, RENDER_DIST * CHUNK_X * 1.15);
+
+const highlight = new THREE.Mesh(
+  new THREE.BoxGeometry(1.004, 1.004, 1.004),
+  new THREE.MeshBasicMaterial({ color: 0x000000, wireframe: true, transparent: true, opacity: 0.5 }));
+highlight.visible = false;
+scene.add(highlight);
+
+const cracks = new THREE.Mesh(
+  new THREE.BoxGeometry(1.02, 1.02, 1.02),
+  new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.22, wireframe: true }));
+cracks.visible = false;
+scene.add(cracks);
+
+addEventListener('resize', () => {
+  camera.aspect = innerWidth / innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+
+/* ----------------------------------------------------------------- player */
+const player = {
+  pos: new THREE.Vector3(8, 70, 8),
+  vel: new THREE.Vector3(),
+  yaw: 0, pitch: 0,
+  onGround: false, fly: false,
+  height: 1.72, radius: 0.32, eye: 1.56,
+  health: 20, food: 20, air: 10,
+  fallFrom: null,
+};
+const keys = new Set();
+let pointerLocked = false;
+
+function blockedAt(x, y, z) {
+  const id = getBlock(Math.floor(x), Math.floor(y), Math.floor(z));
+  return isSolid(id);
+}
+function boxHits(px, py, pz) {
+  const r = player.radius;
+  for (let x = Math.floor(px - r); x <= Math.floor(px + r); x++)
+    for (let z = Math.floor(pz - r); z <= Math.floor(pz + r); z++)
+      for (let y = Math.floor(py); y <= Math.floor(py + player.height); y++)
+        if (blockedAt(x + 0.5, y + 0.5, z + 0.5)) return true;
+  return false;
+}
+function moveAxis(axis, amount) {
+  if (!amount) return;
+  const next = player.pos.clone();
+  next[axis] += amount;
+  if (!boxHits(next.x, next.y, next.z)) { player.pos.copy(next); return; }
+  if (axis === 'y') {
+    if (amount < 0) {
+      player.onGround = true;
+      if (player.fallFrom !== null) {
+        const drop = player.fallFrom - player.pos.y;
+        if (drop > 4 && !player.fly) damage(Math.floor(drop - 3), 'the fall');
+        player.fallFrom = null;
+      }
+    }
+    player.vel.y = 0;
+  }
+}
+
+/* ---------------------------------------------------------------- raycast
+   Amanatides & Woo grid traversal — walks the voxels the ray actually enters
+   instead of testing every mesh in the world. */
+function rayVoxel(maxDist) {
+  const dir = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion).normalize();
+  const origin = camera.position;
+  let x = Math.floor(origin.x), y = Math.floor(origin.y), z = Math.floor(origin.z);
+  const step = [Math.sign(dir.x), Math.sign(dir.y), Math.sign(dir.z)];
+  const tDelta = [Math.abs(1 / dir.x), Math.abs(1 / dir.y), Math.abs(1 / dir.z)];
+  const dist = (i, p, s) => s > 0 ? (Math.floor(p) + 1 - p) : (p - Math.floor(p));
+  let tMax = [
+    step[0] ? dist(0, origin.x, step[0]) * tDelta[0] : Infinity,
+    step[1] ? dist(1, origin.y, step[1]) * tDelta[1] : Infinity,
+    step[2] ? dist(2, origin.z, step[2]) * tDelta[2] : Infinity,
+  ];
+  let face = [0, 0, 0];
+  for (let i = 0; i < maxDist * 3; i++) {
+    const id = getBlock(x, y, z);
+    if (id && !BLOCKS[id].liquid) return { x, y, z, id, face };
+    if (tMax[0] < tMax[1] && tMax[0] < tMax[2]) {
+      if (tMax[0] > maxDist) break;
+      x += step[0]; tMax[0] += tDelta[0]; face = [-step[0], 0, 0];
+    } else if (tMax[1] < tMax[2]) {
+      if (tMax[1] > maxDist) break;
+      y += step[1]; tMax[1] += tDelta[1]; face = [0, -step[1], 0];
+    } else {
+      if (tMax[2] > maxDist) break;
+      z += step[2]; tMax[2] += tDelta[2]; face = [0, 0, -step[2]];
+    }
+  }
+  return null;
+}
+
+/* -------------------------------------------------------------- inventory */
+const inventory = new Map();          // id -> count
+const hotbar = [1, 2, 3, 6, 15, 22, 23, 24, 0];
+let hotbarSlot = 0;
+const tools = new Map();              // id -> remaining uses
+
+function give(id, n) {
+  if (!id) return;
+  inventory.set(id, (inventory.get(id) || 0) + n);
+  if (BLOCKS[id].uses && !tools.has(id)) tools.set(id, BLOCKS[id].uses);
+  const empty = hotbar.indexOf(0);
+  if (!hotbar.includes(id) && empty >= 0) hotbar[empty] = id;
+  drawHotbar();
+}
+function take(id, n) {
+  const have = inventory.get(id) || 0;
+  if (have < n) return false;
+  if (have === n) inventory.delete(id); else inventory.set(id, have - n);
+  drawHotbar();
+  return true;
+}
+function bestTool(family) {
+  let best = { power: 1, id: 0 };
+  inventory.forEach((count, id) => {
+    const b = BLOCKS[id];
+    if (b.tool === family && b.power && b.power > best.power) best = { power: b.power, id };
+  });
+  return best;
+}
+
+/* --------------------------------------------------------------- crafting */
+const RECIPES = [
+  { out:15, n:4, need:[[6,1]],           name:'Planks',      note:'from one log' },
+  { out:21, n:4, need:[[15,2]],          name:'Sticks',      note:'from two planks' },
+  { out:22, n:1, need:[[15,4]],          name:'Workbench',   note:'four planks' },
+  { out:23, n:4, need:[[21,1],[16,1]],   name:'Torches',     note:'stick and coal' },
+  { out:26, n:1, need:[[15,3],[21,2]],   name:'Wood pick',   note:'planks and sticks' },
+  { out:29, n:1, need:[[15,3],[21,2]],   name:'Wood axe',    note:'planks and sticks' },
+  { out:27, n:1, need:[[4,3],[21,2]],    name:'Stone pick',  note:'cobble and sticks' },
+  { out:30, n:1, need:[[4,3],[21,2]],    name:'Stone axe',   note:'cobble and sticks' },
+  { out:31, n:1, need:[[4,1],[21,2]],    name:'Shovel',      note:'cobble and sticks' },
+  { out:28, n:1, need:[[18,3],[21,2]],   name:'Iron pick',   note:'iron and sticks', bench:true },
+  { out:24, n:2, need:[[5,2],[16,1]],    name:'Glass',       note:'sand fired with coal', bench:true },
+  { out:25, n:4, need:[[2,4],[16,1]],    name:'Bricks',      note:'soil fired with coal', bench:true },
+  { out:32, n:1, need:[[7,3],[5,1]],     name:'Bread',       note:'a rough field ration' },
+];
+function canCraft(recipe) {
+  if (recipe.bench && !nearBench()) return false;
+  return recipe.need.every(([id, n]) => (inventory.get(id) || 0) >= n);
+}
+function nearBench() {
+  const p = player.pos;
+  for (let dx = -3; dx <= 3; dx++) for (let dy = -2; dy <= 2; dy++) for (let dz = -3; dz <= 3; dz++)
+    if (getBlock(Math.floor(p.x) + dx, Math.floor(p.y) + dy, Math.floor(p.z) + dz) === 22) return true;
+  return false;
+}
+function craft(recipe) {
+  if (!canCraft(recipe)) return;
+  recipe.need.forEach(([id, n]) => take(id, n));
+  give(recipe.out, recipe.n);
+  say('Crafted ' + recipe.name);
+  openInventory();
+}
+
+/* ------------------------------------------------------------- day cycle */
+let clock = DAY_LENGTH * 0.25;        // start mid-morning
+function updateSky(dt) {
+  clock = (clock + dt) % DAY_LENGTH;
+  const t = clock / DAY_LENGTH;                     // 0 dawn, .25 noon, .5 dusk, .75 midnight
+  const angle = t * Math.PI * 2;          // t=0 dawn, .25 noon, .5 dusk, .75 midnight
+  const height = Math.sin(angle);
+  sun.position.set(Math.cos(angle) * 120, height * 140, 60).add(player.pos);
+  sun.target.position.copy(player.pos);
+  const day = Math.max(0, Math.min(1, height * 1.6 + 0.35));
+  sun.intensity = 0.15 + day * 0.85;
+  sky.intensity = 0.18 + day * 0.5;
+  const skyCol = new THREE.Color(0x0b1730).lerp(new THREE.Color(0x8fd0ff), day);
+  if (day < 0.42) skyCol.lerp(new THREE.Color(0xd98b52), (0.42 - day) * 0.9);
+  scene.background = skyCol;
+  scene.fog.color = skyCol;
+  document.body.style.background = '#' + skyCol.getHexString();
+}
+const isNight = () => { const t = clock / DAY_LENGTH; return t > 0.52 || t < 0.02; };
+
+/* ------------------------------------------------------------- vitals */
+let hurtCooldown = 0;
+function damage(amount, cause) {
+  if (player.fly || amount <= 0) return;
+  player.health = Math.max(0, player.health - amount);
+  say(`−${amount} health from ${cause}`);
+  drawVitals();
+  if (player.health === 0) respawn();
+}
+function respawn() {
+  say('You blacked out and woke at the spawn point');
+  player.health = 20; player.food = Math.max(6, player.food - 4);
+  player.pos.set(8, heightAt(8, 8) + 3, 8);
+  player.vel.set(0, 0, 0);
+  drawVitals();
+}
+function drawVitals() {
+  document.getElementById('healthBar').style.width = (player.health / 20 * 100) + '%';
+  document.getElementById('foodBar').style.width = (player.food / 20 * 100) + '%';
+  document.getElementById('mode').textContent = player.fly ? 'Creative flight' : 'Survival';
+}
+
+/* --------------------------------------------------------------- mining */
+let edgeWarned = false;
+let breaking = null;                  // {x,y,z,id,progress,total}
+let swingCooldown = 0;
+function updateBreaking(dt) {
+  swingCooldown -= dt;
+  if (!mouseDown || !pointerLocked) { breaking = null; cracks.visible = false; return; }
+  const creature = mobInReach();
+  if (creature) {
+    if (swingCooldown <= 0) { swingCooldown = 0.42; hitMob(creature); }
+    breaking = null; cracks.visible = false;
+    return;
+  }
+  const hit = rayVoxel(6);
+  if (!hit) { breaking = null; cracks.visible = false; return; }
+  if (!breaking || breaking.x !== hit.x || breaking.y !== hit.y || breaking.z !== hit.z) {
+    const block = BLOCKS[hit.id];
+    const tool = block.tool ? bestTool(block.tool) : { power: 1, id: 0 };
+    const total = Math.max(0.05, block.hard / tool.power);
+    breaking = { x: hit.x, y: hit.y, z: hit.z, id: hit.id, progress: 0, total, toolId: tool.id };
+  }
+  breaking.progress += dt;
+  cracks.position.set(breaking.x + 0.5, breaking.y + 0.5, breaking.z + 0.5);
+  cracks.material.opacity = 0.12 + (breaking.progress / breaking.total) * 0.55;
+  cracks.visible = true;
+  if (breaking.progress >= breaking.total) {
+    completeBreak(breaking.x, breaking.y, breaking.z, breaking.id, breaking.toolId);
+    breaking = null; cracks.visible = false;
+  }
+}
+/** The moment a block gives way: it goes, and what it drops arrives in the bag. */
+function completeBreak(x, y, z, id, toolId) {
+  const block = BLOCKS[id];
+  if (!block) return false;
+  setBlock(x, y, z, 0);
+  give(block.drop || id, 1);
+  if (toolId) wearTool(toolId);
+  return true;
+}
+function wearTool(id) {
+  const left = (tools.get(id) || 0) - 1;
+  if (left <= 0) {
+    tools.delete(id);
+    take(id, 1);
+    say(BLOCKS[id].name + ' wore out');
+  } else tools.set(id, left);
+}
+function eat(id) {
+  const block = BLOCKS[id];
+  if (player.food >= 20) { say('Not hungry yet'); return; }
+  take(id, 1);
+  player.food = Math.min(20, player.food + block.food);
+  say('Ate ' + block.name.toLowerCase());
+  drawVitals();
+}
+function placeBlock() {
+  const id0 = hotbar[hotbarSlot];
+  if (id0 && BLOCKS[id0] && BLOCKS[id0].food && inventory.get(id0) > 0) { eat(id0); return; }
+  const hit = rayVoxel(6);
+  if (!hit) return;
+  const id = hotbar[hotbarSlot];
+  if (!id || !(inventory.get(id) > 0)) return;
+  if (BLOCKS[id].food) { eat(id); return; }
+  if (BLOCKS[id].item) return;
+  const x = hit.x + hit.face[0], y = hit.y + hit.face[1], z = hit.z + hit.face[2];
+  // never place inside yourself
+  const px = player.pos.x, py = player.pos.y, pz = player.pos.z;
+  if (x === Math.floor(px) && z === Math.floor(pz) &&
+      y >= Math.floor(py) && y <= Math.floor(py + player.height)) return;
+  if (getBlock(x, y, z)) return;
+  if (!inTerritory(x, z)) { say('Outside your frontier'); return; }
+  if (setBlock(x, y, z, id)) take(id, 1);
+}
+
+/* ------------------------------------------------------------------- HUD */
+const hint = document.getElementById('hint');
+let hintTimer = 0;
+function say(text) {
+  hint.textContent = text;
+  hint.classList.add('show');
+  clearTimeout(hintTimer);
+  hintTimer = setTimeout(() => hint.classList.remove('show'), 2600);
+}
+function drawHotbar() {
+  const bar = document.getElementById('hotbar');
+  bar.innerHTML = '';
+  hotbar.forEach((id, i) => {
+    const slot = document.createElement('div');
+    slot.className = 'slot' + (i === hotbarSlot ? ' on' : '');
+    if (id) {
+      const block = BLOCKS[id];
+      const count = inventory.get(id) || 0;
+      slot.innerHTML =
+        `<span class="swatch" style="background:#${block.colour.toString(16).padStart(6, '0')}"></span>` +
+        `<small>${block.name}</small>` +
+        (count ? `<span class="count">${count}</span>` : '');
+      if (!count) slot.style.opacity = 0.35;
+    }
+    slot.onclick = () => { hotbarSlot = i; drawHotbar(); };
+    bar.appendChild(slot);
+  });
+}
+
+/* --------------------------------------------------------------- screens */
+const panel = document.getElementById('panel');
+const card = document.getElementById('card');
+let panelMode = 'title';
+
+function showTitle() {
+  panelMode = 'title';
+  const slots = Array.from({ length: SLOTS }, (_, i) => ({ i, info: slotSummary(i) }));
+  card.innerHTML = `
+    <h1>BrickLab Frontier — Deep World</h1>
+    <p class="muted">A finite frontier you dig, mine, craft and build in — and expand as you earn it.</p>
+    <h2>Your worlds</h2>
+    <div class="grid" id="slots"></div>
+    <h2>Controls</h2>
+    <div class="keys">
+      <b>W A S D</b><span>Walk. Hold <b>Shift</b> to sprint.</span>
+      <b>Space</b><span>Jump — or rise, when flying</span>
+      <b>Mouse</b><span>Look around</span>
+      <b>Hold left</b><span>Mine the block you are aiming at, or strike a creature</span>
+      <b>Right click</b><span>Place the block in hand, or eat what you are holding</span>
+      <b>1 – 9 / wheel</b><span>Choose a hotbar slot</span>
+      <b>E</b><span>Bag and crafting</span>
+      <b>M</b><span>Territory map and expansion</span>
+      <b>F</b><span>Creative flight on or off</span>
+      <b>Esc</b><span>Release the mouse</span>
+    </div>
+    <h2>Getting started</h2>
+    <p>Punch a tree for logs, craft planks, then sticks, then a pickaxe. Stone gives cobble;
+       deeper down there is coal, copper, iron, gold and crystal. Grublings surface after dark
+       and stone-biters live in the caves — torches keep both away, so light your shelter before dusk.</p>
+    <p class="muted">Original BrickLab game. Not affiliated with any other block-building game.</p>`;
+
+  const holder = document.getElementById('slots');
+  slots.forEach(({ i, info }) => {
+    const box = document.createElement('div');
+    box.className = 'item';
+    box.style.flexDirection = 'column';
+    box.style.alignItems = 'stretch';
+    box.innerHTML = info
+      ? `<b>${info.name}</b><small class="muted">${info.territory * 2}×${info.territory * 2} ·
+         ${info.edits} blocks changed<br>${info.saved}</small>`
+      : `<b>Empty slot ${i + 1}</b><small class="muted">Start a new frontier here</small>`;
+    const row = document.createElement('div');
+    row.className = 'row';
+    row.style.marginTop = '8px';
+    const play = document.createElement('button');
+    play.className = 'primary';
+    play.textContent = info ? 'Continue' : 'New world';
+    play.onclick = () => {
+      activeSlot = i;
+      if (info) { loadSlot(i); startGame(false); }
+      else {
+        SEED = Math.floor(Math.random() * 1e9);
+        territory = TERRITORY_START;
+        worldName = 'Frontier ' + (i + 1);
+        edits.clear(); discovered.clear(); inventory.clear(); tools.clear();
+        player.pos.set(8, 70, 8); player.health = 20; player.food = 20;
+        startGame(true);
+      }
+    };
+    row.appendChild(play);
+    if (info) {
+      const rename = document.createElement('button');
+      rename.textContent = 'Rename';
+      rename.onclick = () => {
+        const name = prompt('Name this frontier', info.name);
+        if (!name) return;
+        try {
+          const d = JSON.parse(localStorage.getItem(slotKey(i)));
+          d.name = name.slice(0, 40);
+          localStorage.setItem(slotKey(i), JSON.stringify(d));
+        } catch (e) { /* ignore */ }
+        showTitle();
+      };
+      row.appendChild(rename);
+      if (localStorage.getItem(slotKey(i) + ':backup')) {
+        const recover = document.createElement('button');
+        recover.textContent = 'Recover';
+        recover.title = 'Load the copy saved before the last save';
+        recover.onclick = () => { activeSlot = i; loadSlot(i, true); startGame(false); };
+        row.appendChild(recover);
+      }
+      const wipe = document.createElement('button');
+      wipe.textContent = 'Delete';
+      wipe.onclick = () => {
+        if (!confirm('Delete ' + info.name + '? This cannot be undone.')) return;
+        localStorage.removeItem(slotKey(i));
+        localStorage.removeItem(slotKey(i) + ':backup');
+        showTitle();
+      };
+      row.appendChild(wipe);
+    }
+    box.appendChild(row);
+    holder.appendChild(box);
+  });
+
+  const importRow = document.createElement('div');
+  importRow.className = 'row';
+  const importButton = document.createElement('button');
+  importButton.textContent = 'Import a world file';
+  const picker = document.createElement('input');
+  picker.type = 'file';
+  picker.accept = '.json,.frontier.json';
+  picker.style.display = 'none';
+  picker.onchange = () => {
+    if (!picker.files[0]) return;
+    importWorld(picker.files[0], (ok) => {
+      if (ok) startGame(false); else alert('That file could not be read.');
+    });
+  };
+  importButton.onclick = () => picker.click();
+  importRow.appendChild(importButton);
+  importRow.appendChild(picker);
+  holder.parentElement.insertBefore(importRow, holder.nextSibling);
+
+  panel.classList.remove('hidden');
+}
+
+function openMap() {
+  panelMode = 'map';
+  card.innerHTML = `
+    <h1>${worldName}</h1>
+    <p class="muted">Frontier ${territory * 2} × ${territory * 2} blocks · seed ${SEED} ·
+       ${discovered.size} areas explored</p>
+    <canvas id="mapCanvas" width="520" height="520"
+            style="width:100%;max-width:520px;border-radius:12px;border:1px solid var(--line);margin:12px 0"></canvas>
+    <p class="muted">Gold marks where you began, red is you. Unexplored ground stays dark until you walk it.</p>
+    <div class="row">
+      <button class="primary" id="btnCloseMap">Back to the world</button>
+      <button id="btnExpand">Expand frontier (+${TERRITORY_STEP * 2} blocks)</button>
+      <button id="btnSaveMap">Save</button>
+      <button id="btnExport">Export world</button>
+    </div>
+    <p class="muted" style="margin-top:12px">Expansion is free during Early Builder Access.</p>`;
+  drawMap(document.getElementById('mapCanvas'));
+  document.getElementById('btnCloseMap').onclick = closePanel;
+  document.getElementById('btnExpand').onclick = () => {
+    if (expandTerritory()) openMap();
+  };
+  document.getElementById('btnSaveMap').onclick = () => saveWorld();
+  document.getElementById('btnExport').onclick = exportWorld;
+  panel.classList.remove('hidden');
+  document.exitPointerLock && document.exitPointerLock();
+}
+
+function closePanel() {
+  panel.classList.add('hidden');
+  panelMode = 'none';
+  renderer.domElement.requestPointerLock();
+}
+
+/* ----------------------------------------------------------- chunk stream */
+function streamChunks() {
+  const pcx = Math.floor(player.pos.x / CHUNK_X), pcz = Math.floor(player.pos.z / CHUNK_Z);
+  let generated = 0, meshed = 0;
+  const wanted = [];
+  for (let dx = -RENDER_DIST; dx <= RENDER_DIST; dx++)
+    for (let dz = -RENDER_DIST; dz <= RENDER_DIST; dz++) {
+      const d = Math.hypot(dx, dz);
+      if (d > RENDER_DIST) continue;
+      if (!chunkTouchesTerritory(pcx + dx, pcz + dz)) continue;
+      wanted.push({ cx: pcx + dx, cz: pcz + dz, d });
+    }
+  wanted.sort((a, b) => a.d - b.d);
+  for (const { cx, cz } of wanted) {
+    const k = ckey(cx, cz);
+    let chunk = chunks.get(k);
+    if (!chunk) { chunk = makeChunk(cx, cz); chunks.set(k, chunk); }
+    if (!chunk.generated) {
+      if (generated >= GEN_BUDGET) continue;
+      generateChunk(chunk); generated++;
+      markDirty(cx - 1, cz); markDirty(cx + 1, cz); markDirty(cx, cz - 1); markDirty(cx, cz + 1);
+    }
+    if (chunk.dirty && meshed < MESH_BUDGET) { meshChunk(chunk); meshed++; }
+  }
+  // drop anything well outside the ring
+  chunks.forEach((chunk, k) => {
+    if (Math.hypot(chunk.cx - pcx, chunk.cz - pcz) > RENDER_DIST + 2) {
+      if (chunk.mesh) { scene.remove(chunk.mesh); chunk.mesh.geometry.dispose(); }
+      if (chunk.water) { scene.remove(chunk.water); chunk.water.geometry.dispose(); }
+      chunks.delete(k);
+    }
+  });
+}
+
+/* ------------------------------------------------------------------ input */
+let mouseDown = false;
+renderer.domElement.addEventListener('mousedown', (e) => {
+  if (!pointerLocked) { renderer.domElement.requestPointerLock(); return; }
+  if (e.button === 0) mouseDown = true;
+  if (e.button === 2) placeBlock();
+});
+addEventListener('mouseup', () => { mouseDown = false; breaking = null; cracks.visible = false; });
+renderer.domElement.addEventListener('contextmenu', (e) => e.preventDefault());
+document.addEventListener('pointerlockchange', () => {
+  pointerLocked = document.pointerLockElement === renderer.domElement;
+  document.getElementById('crosshair').classList.toggle('hidden', !pointerLocked);
+});
+addEventListener('mousemove', (e) => {
+  if (!pointerLocked) return;
+  player.yaw -= e.movementX * 0.0022;
+  player.pitch -= e.movementY * 0.0022;
+  player.pitch = Math.max(-1.55, Math.min(1.55, player.pitch));
+});
+addEventListener('wheel', (e) => {
+  if (!pointerLocked) return;
+  hotbarSlot = (hotbarSlot + (e.deltaY > 0 ? 1 : -1) + hotbar.length) % hotbar.length;
+  drawHotbar();
+});
+addEventListener('keydown', (e) => {
+  const k = e.key.toLowerCase();
+  keys.add(k);
+  if (k >= '1' && k <= '9') { hotbarSlot = Number(k) - 1; drawHotbar(); }
+  if (k === 'e') { panel.classList.contains('hidden') ? openInventory() : closePanel(); }
+  if (k === 'm') { panel.classList.contains('hidden') ? openMap() : closePanel(); }
+  if (k === 'f' && panel.classList.contains('hidden')) {
+    player.fly = !player.fly; player.vel.set(0, 0, 0);
+    say(player.fly ? 'Creative flight on' : 'Survival movement');
+    drawVitals();
+  }
+  if (k === ' ') e.preventDefault();
+});
+addEventListener('keyup', (e) => keys.delete(e.key.toLowerCase()));
+
+/* --------------------------------------------------------------- territory
+   A frontier is finite. Land stops at a visible edge, and the edge moves out
+   only when the player earns it — which is what makes scarcity mean anything. */
+const TERRITORY_START = 48;          // half-width in blocks: a 96 x 96 frontier
+const TERRITORY_STEP = 16;           // each expansion pushes every edge out this far
+const TERRITORY_MAX = 160;
+let territory = TERRITORY_START;
+let boundaryMesh = null;
+
+const inTerritory = (x, z) => Math.abs(x) <= territory && Math.abs(z) <= territory;
+const chunkTouchesTerritory = (cx, cz) =>
+  (cx + 1) * CHUNK_X > -territory && cx * CHUNK_X < territory &&
+  (cz + 1) * CHUNK_Z > -territory && cz * CHUNK_Z < territory;
+
+function rebuildBoundary() {
+  if (boundaryMesh) { scene.remove(boundaryMesh); boundaryMesh.geometry.dispose(); }
+  const r = territory + 0.5, top = 96, bottom = -2;
+  const pos = [], col = [];
+  const push = (ax, az, bx, bz) => {
+    const quad = [[ax, bottom, az], [ax, top, az], [bx, top, bz],
+                  [ax, bottom, az], [bx, top, bz], [bx, bottom, bz]];
+    for (const [x, y, z] of quad) {
+      pos.push(x, y, z);
+      const fade = Math.min(1, Math.max(0, (y - 20) / 60));
+      col.push(0.42 + fade * 0.3, 0.72, 0.95);
+    }
+  };
+  push(-r, -r, r, -r); push(r, -r, r, r); push(r, r, -r, r); push(-r, r, -r, -r);
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  boundaryMesh = new THREE.Mesh(g, new THREE.MeshBasicMaterial({
+    vertexColors: true, transparent: true, opacity: 0.16, side: THREE.DoubleSide, depthWrite: false }));
+  scene.add(boundaryMesh);
+}
+
+function expandTerritory() {
+  if (territory >= TERRITORY_MAX) { say('This frontier is already at its limit'); return false; }
+  territory = Math.min(TERRITORY_MAX, territory + TERRITORY_STEP);
+  rebuildBoundary();
+  say(`Frontier expanded to ${territory * 2} × ${territory * 2} — free during Early Builder Access`);
+  return true;
+}
+
+/* ------------------------------------------------------------------- map
+   Only chunks the player has actually been near are drawn; the rest stays
+   under fog, so the territory is something you uncover rather than read off. */
+const discovered = new Set();
+function noteDiscovery() {
+  const pcx = Math.floor(player.pos.x / CHUNK_X), pcz = Math.floor(player.pos.z / CHUNK_Z);
+  for (let dx = -2; dx <= 2; dx++)
+    for (let dz = -2; dz <= 2; dz++) discovered.add(ckey(pcx + dx, pcz + dz));
+}
+
+const BIOME_INK = ['#7cb342', '#2f7d32', '#e0cf90', '#9aa7b4', '#e8f1f6'];
+function drawMap(canvas) {
+  const ctx = canvas.getContext('2d');
+  const span = territory * 2 + 32;
+  const scale = canvas.width / span;
+  ctx.fillStyle = '#0a121c';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  const toPx = (v) => (v + span / 2) * scale;
+  // discovered ground, coloured by biome and shaded by height
+  discovered.forEach((key) => {
+    const [cx, cz] = key.split(',').map(Number);
+    if (!chunkTouchesTerritory(cx, cz)) return;
+    for (let lx = 0; lx < CHUNK_X; lx += 2) {
+      for (let lz = 0; lz < CHUNK_Z; lz += 2) {
+        const x = cx * CHUNK_X + lx, z = cz * CHUNK_Z + lz;
+        if (!inTerritory(x, z)) continue;
+        const h = heightAt(x, z);
+        const ink = h < SEA_LEVEL ? '#2f6fb0' : BIOME_INK[biomeAt(x, z)] || '#7cb342';
+        ctx.fillStyle = ink;
+        ctx.globalAlpha = h < SEA_LEVEL ? 0.9 : 0.55 + Math.min(0.45, (h - SEA_LEVEL) / 40);
+        ctx.fillRect(toPx(x), toPx(z), scale * 2 + 1, scale * 2 + 1);
+      }
+    }
+  });
+  ctx.globalAlpha = 1;
+
+  // the frontier edge
+  ctx.strokeStyle = '#7cc4ff';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(toPx(-territory), toPx(-territory), territory * 2 * scale, territory * 2 * scale);
+
+  // spawn and the player
+  const mark = (x, z, colour, size) => {
+    ctx.fillStyle = colour;
+    ctx.beginPath();
+    ctx.arc(toPx(x), toPx(z), size, 0, Math.PI * 2);
+    ctx.fill();
+  };
+  mark(0, 0, '#ffd479', 4);
+  mark(player.pos.x, player.pos.z, '#ff6b6b', 5);
+  ctx.strokeStyle = '#ffffff';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(toPx(player.pos.x), toPx(player.pos.z));
+  ctx.lineTo(toPx(player.pos.x - Math.sin(player.yaw) * 12), toPx(player.pos.z - Math.cos(player.yaw) * 12));
+  ctx.stroke();
+}
+
+/* ------------------------------------------------------------- world slots */
+const SLOTS = 3;
+const slotKey = (i) => `${SAVE_KEY}:slot${i}`;
+let activeSlot = 0;
+
+function slotSummary(i) {
+  try {
+    const raw = localStorage.getItem(slotKey(i));
+    if (!raw) return null;
+    const d = JSON.parse(raw);
+    return {
+      name: d.name || `Frontier ${i + 1}`,
+      seed: d.seed,
+      edits: (d.edits || []).length,
+      territory: d.territory || TERRITORY_START,
+      saved: d.savedAt ? new Date(d.savedAt).toLocaleString() : 'unknown',
+    };
+  } catch (e) { return null; }
+}
+
+function worldPayload(name) {
+  return {
+    v: 2, name, seed: SEED, clock, territory,
+    savedAt: Date.now(),
+    pos: player.pos.toArray(), yaw: player.yaw, pitch: player.pitch,
+    health: player.health, food: player.food,
+    inventory: [...inventory.entries()],
+    tools: [...tools.entries()],
+    hotbar, edits: [...edits.entries()],
+    discovered: [...discovered],
+  };
+}
+
+function saveWorld(quiet) {
+  const payload = worldPayload(worldName);
+  try {
+    // keep the previous save as a recovery copy before overwriting
+    const previous = localStorage.getItem(slotKey(activeSlot));
+    if (previous) localStorage.setItem(slotKey(activeSlot) + ':backup', previous);
+    localStorage.setItem(slotKey(activeSlot), JSON.stringify(payload));
+    if (!quiet) say('World saved');
+  } catch (e) {
+    say('Could not save — browser storage is full');
+  }
+}
+
+function applyPayload(d) {
+  SEED = d.seed;
+  clock = d.clock ?? clock;
+  territory = d.territory || TERRITORY_START;
+  worldName = d.name || worldName;
+  player.pos.fromArray(d.pos); player.yaw = d.yaw; player.pitch = d.pitch;
+  player.health = d.health ?? 20; player.food = d.food ?? 20;
+  inventory.clear(); (d.inventory || []).forEach(([id, n]) => inventory.set(id, n));
+  tools.clear(); (d.tools || []).forEach(([id, n]) => tools.set(id, n));
+  if (d.hotbar) { hotbar.length = 0; d.hotbar.forEach((v) => hotbar.push(v)); }
+  edits.clear(); (d.edits || []).forEach(([k, id]) => edits.set(k, id));
+  discovered.clear(); (d.discovered || []).forEach((k) => discovered.add(k));
+  return true;
+}
+
+function loadSlot(i, useBackup) {
+  try {
+    const raw = localStorage.getItem(slotKey(i) + (useBackup ? ':backup' : ''));
+    if (!raw) return false;
+    activeSlot = i;
+    return applyPayload(JSON.parse(raw));
+  } catch (e) { return false; }
+}
+
+function exportWorld() {
+  const blob = new Blob([JSON.stringify(worldPayload(worldName))], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = worldName.replace(/[^a-z0-9]+/gi, '-').toLowerCase() + '.frontier.json';
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+}
+
+function importWorld(file, then) {
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      applyPayload(JSON.parse(reader.result));
+      chunks.forEach((c, k) => {
+        if (c.mesh) { scene.remove(c.mesh); c.mesh.geometry.dispose(); }
+        if (c.water) { scene.remove(c.water); c.water.geometry.dispose(); }
+        chunks.delete(k);
+      });
+      then(true);
+    } catch (e) { then(false); }
+  };
+  reader.readAsText(file);
+}
+
+/* ---------------------------------------------------------------- creatures
+   Original BrickLab wildlife. Grublings surface after dark, stone-biters live
+   in the deep, and meadow hoppers graze by day and are the food supply. */
+const MOBS = {
+  grubling: {
+    name:'Grubling', hostile:true, health:8, speed:2.6, damage:2, aggro:16,
+    body:0x6a4f7a, trim:0xc0a3e0, size:[0.7,0.85,0.9], surface:true,
+    drop:{ id:16, n:1 },                      // a lump of coal-black residue
+  },
+  biter: {
+    name:'Stone-biter', hostile:true, health:12, speed:3.2, damage:3, aggro:14,
+    body:0x5c6470, trim:0x8fe6ec, size:[0.8,0.7,1.0], cave:true,
+    drop:{ id:20, n:1 },                      // crystal shard
+  },
+  hopper: {
+    name:'Meadow hopper', hostile:false, health:5, speed:2.0, damage:0, aggro:0,
+    body:0xc8a86a, trim:0xf2e3c0, size:[0.6,0.7,0.8], surface:true, day:true,
+    drop:{ id:32, n:1 },                      // a ration
+  },
+};
+const MOB_CAP = { hostile: 14, passive: 8 };
+const mobs = [];
+const mobGeometry = {};
+
+function mobMesh(kind) {
+  const spec = MOBS[kind];
+  if (!mobGeometry[kind]) {
+    const [w, h, d] = spec.size;
+    const group = new THREE.Group();
+    const body = new THREE.Mesh(new THREE.BoxGeometry(w, h, d),
+      new THREE.MeshLambertMaterial({ color: new THREE.Color(spec.body).convertSRGBToLinear() }));
+    body.position.y = h / 2;
+    group.add(body);
+    const head = new THREE.Mesh(new THREE.BoxGeometry(w * 0.62, h * 0.6, w * 0.62),
+      new THREE.MeshLambertMaterial({ color: new THREE.Color(spec.trim).convertSRGBToLinear() }));
+    head.position.set(0, h * 0.92, -d * 0.42);
+    group.add(head);
+    for (const side of [-1, 1]) {
+      const leg = new THREE.Mesh(new THREE.BoxGeometry(w * 0.22, h * 0.5, w * 0.22),
+        new THREE.MeshLambertMaterial({ color: new THREE.Color(spec.body).convertSRGBToLinear() }));
+      leg.position.set(side * w * 0.3, -h * 0.2, 0);
+      group.add(leg);
+    }
+    mobGeometry[kind] = group;
+  }
+  return mobGeometry[kind].clone();
+}
+
+/** A torch within reach keeps the dark things away. */
+function litNearby(x, y, z, radius) {
+  for (let dx = -radius; dx <= radius; dx++)
+    for (let dy = -3; dy <= 3; dy++)
+      for (let dz = -radius; dz <= radius; dz++)
+        if (getBlock(x + dx, y + dy, z + dz) === 23) return true;
+  return false;
+}
+
+function surfaceHeight(x, z) {
+  for (let y = CHUNK_Y - 1; y > 0; y--) {
+    const id = getBlock(x, y, z);
+    if (id && id !== 8) return y;
+  }
+  return -1;
+}
+
+function spawnMob(kind, x, y, z) {
+  const spec = MOBS[kind];
+  const group = mobMesh(kind);
+  group.position.set(x, y, z);
+  scene.add(group);
+  const mob = { kind, spec, group, pos: new THREE.Vector3(x, y, z), vel: new THREE.Vector3(),
+                health: spec.health, hurt: 0, swing: 0, wander: Math.random() * Math.PI * 2 };
+  mobs.push(mob);
+  return mob;
+}
+
+let spawnTimer = 0;
+function updateSpawning(dt) {
+  spawnTimer -= dt;
+  if (spawnTimer > 0) return;
+  spawnTimer = 1.3;
+
+  const p = player.pos;
+
+  for (let attempt = 0; attempt < 8; attempt++) {
+    // recount every attempt so the caps actually hold
+    const hostile = mobs.reduce((n, m) => n + (m.spec.hostile ? 1 : 0), 0);
+    const passive = mobs.length - hostile;
+    const angle = Math.random() * Math.PI * 2;
+    const dist = 14 + Math.random() * 16;
+    const x = Math.floor(p.x + Math.cos(angle) * dist);
+    const z = Math.floor(p.z + Math.sin(angle) * dist);
+    if (!inTerritory(x, z)) continue;
+
+    // deep and dark: stone-biters, hunting for an air pocket near the player's level
+    if (p.y < 30) {
+      let placed = false;
+      for (let dy = -6; dy <= 6 && !placed; dy++) {
+        const y = Math.floor(p.y) + dy;
+        if (y < 2 || y > 58) continue;
+        if (getBlock(x, y, z) || getBlock(x, y + 1, z)) continue;
+        if (!isSolid(getBlock(x, y - 1, z))) continue;
+        if (litNearby(x, y, z, 6)) continue;
+        if (hostile < MOB_CAP.hostile) { spawnMob('biter', x + 0.5, y, z + 0.5); placed = true; }
+      }
+      continue;                    // underground, the surface is somebody else's problem
+    }
+    const ground = surfaceHeight(x, z);
+    if (ground < 1 || ground > CHUNK_Y - 4) continue;
+    const y = ground + 1;
+    if (getBlock(x, y, z) || getBlock(x, y + 1, z)) continue;
+
+    if (isNight() && hostile < MOB_CAP.hostile && !litNearby(x, y, z, 7)) {
+      spawnMob('grubling', x + 0.5, y, z + 0.5);
+    } else if (!isNight() && passive < MOB_CAP.passive && getBlock(x, ground, z) === 1) {
+      spawnMob('hopper', x + 0.5, y, z + 0.5);
+    }
+  }
+}
+
+function removeMob(i) {
+  scene.remove(mobs[i].group);
+  mobs.splice(i, 1);
+}
+
+function updateMobs(dt) {
+  const p = player.pos;
+  for (let i = mobs.length - 1; i >= 0; i--) {
+    const mob = mobs[i];
+    const spec = mob.spec;
+    const away = mob.pos.distanceTo(p);
+
+    // too far to matter, or caught by the dawn
+    if (away > 64 || (spec.surface && spec.hostile && !isNight() && mob.pos.y > 40)) { removeMob(i); continue; }
+
+    const toPlayer = new THREE.Vector3().subVectors(p, mob.pos);
+    let wish = new THREE.Vector3();
+    if (spec.hostile && away < spec.aggro) {
+      wish.copy(toPlayer).setY(0).normalize().multiplyScalar(spec.speed);
+      mob.group.rotation.y = Math.atan2(toPlayer.x, toPlayer.z);
+    } else {
+      mob.wander += (Math.random() - 0.5) * dt * 2;
+      wish.set(Math.cos(mob.wander), 0, Math.sin(mob.wander)).multiplyScalar(spec.speed * 0.35);
+      mob.group.rotation.y = -mob.wander + Math.PI / 2;
+      if (!spec.hostile && away < 5) wish.multiplyScalar(-1.6);   // shy of the player
+    }
+
+    // if it has ended up inside the world — someone built round it — climb out
+    if (isSolid(getBlock(Math.floor(mob.pos.x), Math.floor(mob.pos.y), Math.floor(mob.pos.z)))) {
+      mob.pos.y += 1;
+      mob.vel.y = 0;
+      mob.group.position.copy(mob.pos);
+      continue;
+    }
+
+    // gravity and a hop over single steps
+    mob.vel.y -= 26 * dt;
+    const nx = mob.pos.x + wish.x * dt, nz = mob.pos.z + wish.z * dt;
+    const feet = Math.floor(mob.pos.y);
+    const blockedX = isSolid(getBlock(Math.floor(nx), feet, Math.floor(mob.pos.z)));
+    const blockedZ = isSolid(getBlock(Math.floor(mob.pos.x), feet, Math.floor(nz)));
+    const canStep = !isSolid(getBlock(Math.floor(nx), feet + 1, Math.floor(nz)));
+    if ((blockedX || blockedZ) && canStep && mob.vel.y <= 0.1) mob.vel.y = 7.2;
+    if (!blockedX && inTerritory(nx, mob.pos.z)) mob.pos.x = nx;
+    if (!blockedZ && inTerritory(mob.pos.x, nz)) mob.pos.z = nz;
+
+    const nextY = mob.pos.y + mob.vel.y * dt;
+    if (isSolid(getBlock(Math.floor(mob.pos.x), Math.floor(nextY), Math.floor(mob.pos.z))) && mob.vel.y < 0) {
+      mob.pos.y = Math.floor(nextY) + 1;
+      mob.vel.y = 0;
+    } else mob.pos.y = nextY;
+    if (mob.pos.y < -10) { removeMob(i); continue; }
+
+    mob.group.position.copy(mob.pos);
+    if (mob.hurt > 0) {
+      mob.hurt -= dt;
+      mob.group.position.x += (Math.random() - 0.5) * 0.06;
+    }
+
+    // a hostile one that reaches you bites
+    mob.swing -= dt;
+    if (spec.hostile && away < 1.5 && mob.swing <= 0) {
+      mob.swing = 1.1;
+      damage(spec.damage, 'a ' + spec.name.toLowerCase());
+      const push = toPlayer.clone().setY(0).normalize().multiplyScalar(3.4);
+      player.vel.y = Math.max(player.vel.y, 4);
+      player.pos.x += push.x * 0.12;
+      player.pos.z += push.z * 0.12;
+    }
+  }
+}
+
+/** The creature in front of you, if one is close enough to hit. */
+function mobInReach() {
+  const dir = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
+  let best = null, bestDot = 0.86;
+  for (const mob of mobs) {
+    const to = new THREE.Vector3().subVectors(mob.pos.clone().setY(mob.pos.y + 0.5), camera.position);
+    const dist = to.length();
+    if (dist > 3.6) continue;
+    const dot = to.normalize().dot(dir);
+    if (dot > bestDot) { bestDot = dot; best = mob; }
+  }
+  return best;
+}
+
+function hitMob(mob) {
+  let power = 1;
+  inventory.forEach((count, id) => {
+    const b = BLOCKS[id];
+    if (b.power && b.power > power) power = b.power;   // any tool swings harder than a fist
+  });
+  mob.health -= power;
+  mob.hurt = 0.25;
+  const knock = new THREE.Vector3().subVectors(mob.pos, player.pos).setY(0).normalize().multiplyScalar(0.6);
+  mob.pos.add(knock);
+  mob.vel.y = Math.max(mob.vel.y, 3.5);
+  if (mob.health <= 0) {
+    const i = mobs.indexOf(mob);
+    if (i >= 0) removeMob(i);
+    if (mob.spec.drop) give(mob.spec.drop.id, mob.spec.drop.n);
+    say(mob.spec.name + ' defeated');
+  }
+}
+
+/* ------------------------------------------------------------------- loop */
+let last = performance.now(), fpsAcc = 0, fpsFrames = 0, hudTimer = 0, foodTimer = 0, autoSave = 0;
+
+function physics(dt) {
+  const speed = (player.fly ? 16 : keys.has('shift') ? 8.2 : 5.2);
+  const forward = new THREE.Vector3(-Math.sin(player.yaw), 0, -Math.cos(player.yaw));
+  const right = new THREE.Vector3(Math.cos(player.yaw), 0, -Math.sin(player.yaw));
+  const wish = new THREE.Vector3();
+  if (keys.has('w')) wish.add(forward);
+  if (keys.has('s')) wish.sub(forward);
+  if (keys.has('d')) wish.add(right);
+  if (keys.has('a')) wish.sub(right);
+  if (wish.lengthSq()) wish.normalize().multiplyScalar(speed);
+
+  if (player.fly) {
+    let vy = 0;
+    if (keys.has(' ')) vy += speed;
+    if (keys.has('shift')) vy -= speed;
+    moveAxis('x', wish.x * dt); moveAxis('z', wish.z * dt); moveAxis('y', vy * dt);
+    player.fallFrom = null;
+    return;
+  }
+
+  player.vel.y -= 26 * dt;
+  if (keys.has(' ') && player.onGround) { player.vel.y = 8.4; player.onGround = false; }
+  player.onGround = false;
+
+  const head = getBlock(Math.floor(player.pos.x), Math.floor(player.pos.y + player.eye), Math.floor(player.pos.z));
+  const swimming = head === 8;
+  if (swimming) {
+    player.vel.y = Math.max(player.vel.y, -2.2);
+    if (keys.has(' ')) player.vel.y = 3.4;
+    player.air -= dt;
+    if (player.air < 0) { damage(1, 'drowning'); player.air = 1.2; }
+  } else player.air = 10;
+
+  if (player.vel.y < -0.1 && player.fallFrom === null) player.fallFrom = player.pos.y;
+  if (player.vel.y > 0) player.fallFrom = null;
+
+  moveAxis('x', wish.x * dt * (swimming ? 0.6 : 1));
+  moveAxis('z', wish.z * dt * (swimming ? 0.6 : 1));
+  moveAxis('y', player.vel.y * dt);
+
+  if (player.pos.y < -20) { damage(6, 'the void'); respawn(); }
+}
+
+/** However you are moving — walking, swimming or flying — the frontier holds. */
+function keepInsideFrontier() {
+  const edge = territory - 0.45;
+  const outside = player.pos.x > edge || player.pos.x < -edge ||
+                  player.pos.z > edge || player.pos.z < -edge;
+  if (outside) {
+    player.pos.x = Math.max(-edge, Math.min(edge, player.pos.x));
+    player.pos.z = Math.max(-edge, Math.min(edge, player.pos.z));
+    if (!edgeWarned) { edgeWarned = true; say('The frontier ends here — expand it from the map (M)'); }
+  } else edgeWarned = false;
+}
+
+function frame(now) {
+  requestAnimationFrame(frame);
+  const dt = Math.min(0.05, (now - last) / 1000);
+  last = now;
+
+  if (panelMode === 'title') { renderer.render(scene, camera); return; }
+
+  physics(dt);
+  keepInsideFrontier();
+  camera.position.set(player.pos.x, player.pos.y + player.eye, player.pos.z);
+  camera.rotation.set(player.pitch, player.yaw, 0, 'YXZ');
+
+  streamChunks();
+  updateBreaking(dt);
+  updateSky(dt);
+  updateSpawning(dt);
+  updateMobs(dt);
+  noteDiscovery();
+
+  const hit = rayVoxel(6);
+  if (hit) { highlight.position.set(hit.x + 0.5, hit.y + 0.5, hit.z + 0.5); highlight.visible = true; }
+  else highlight.visible = false;
+
+  // slow hunger, and healing when well fed
+  foodTimer += dt;
+  if (foodTimer > 12 && !player.fly) {
+    foodTimer = 0;
+    if (player.food > 0) {
+      player.food -= 1;
+      if (player.food > 14 && player.health < 20) player.health = Math.min(20, player.health + 1);
+    } else damage(1, 'hunger');
+    drawVitals();
+  }
+  autoSave += dt;
+  if (autoSave > 45) { autoSave = 0; saveWorld(true); }
+
+  fpsAcc += dt; fpsFrames++; hudTimer += dt;
+  if (hudTimer > 0.4) {
+    let faces = 0;
+    chunks.forEach((c) => { faces += c.faces; });
+    document.getElementById('fps').textContent = Math.round(fpsFrames / fpsAcc);
+    document.getElementById('pos').textContent =
+      `${player.pos.x.toFixed(0)} ${player.pos.y.toFixed(0)} ${player.pos.z.toFixed(0)}`;
+    document.getElementById('chunks').textContent = chunks.size + ' · ' + mobs.length + ' creatures';
+    document.getElementById('faces').textContent = faces.toLocaleString();
+    const hours = Math.floor((clock / DAY_LENGTH) * 24 + 6) % 24;
+    document.getElementById('clock').textContent =
+      String(hours).padStart(2, '0') + ':00' + (isNight() ? ' 🌙' : ' ☀');
+    document.getElementById('land').textContent = (territory * 2) + '×' + (territory * 2);
+    fpsAcc = 0; fpsFrames = 0; hudTimer = 0;
+  }
+
+  renderer.render(scene, camera);
+}
+
+/* ------------------------------------------------------------------ start */
+function startGame(fresh) {
+  rebuildBoundary();
+  if (!inventory.size) { give(1, 8); give(6, 4); }
+  player.pos.x = Math.max(-territory + 2, Math.min(territory - 2, player.pos.x));
+  player.pos.z = Math.max(-territory + 2, Math.min(territory - 2, player.pos.z));
+  // drop the player onto solid ground
+  const gx = Math.floor(player.pos.x), gz = Math.floor(player.pos.z);
+  const surface = heightAt(gx, gz);
+  if (player.pos.y < surface + 1) player.pos.y = surface + 2;
+  panel.classList.add('hidden');
+  panelMode = 'none';
+  ['stats', 'vitals', 'hotbar'].forEach((id) => document.getElementById(id).classList.remove('hidden'));
+  drawHotbar(); drawVitals();
+  renderer.domElement.requestPointerLock();
+  noteDiscovery();
+  say('Left click and hold to mine · E for the bag · M for the map');
+}
+
+showTitle();
+requestAnimationFrame(frame);
+
+/* a small hook so the page can be driven from tests or the parent frame */
+window.frontier = {
+  world: { getBlock, setBlock, heightAt, biomeAt, chunks },
+  player, inventory, give, startGame,
+  /* the same paths the mouse drives, callable without pointer lock */
+  aim: (dist) => rayVoxel(dist || 6),
+  mobs, spawnMob, updateSpawning, updateMobs, mobInReach, hitMob, eat,
+  setClock: (t) => { clock = t * DAY_LENGTH; },
+  territory: () => territory, inTerritory, expandTerritory, discovered,
+  saveWorld, loadSlot, slotSummary, exportWorld, worldPayload,
+  setSlot: (i) => { activeSlot = i; },
+  /* run the world forward deterministically — used by tests, and handy for tuning */
+  step: (seconds, dt) => {
+    dt = dt || 1 / 60;
+    for (let i = 0; i < Math.round(seconds / dt); i++) {
+      updateSpawning(dt); updateMobs(dt); updateSky(dt);
+    }
+  },
+  isNight: () => isNight(),
+  mineAim: () => {
+    const hit = rayVoxel(6);
+    if (!hit) return null;
+    const block = BLOCKS[hit.id];
+    const tool = block.tool ? bestTool(block.tool) : { power: 1, id: 0 };
+    return completeBreak(hit.x, hit.y, hit.z, hit.id, tool.id) ? hit : null;
+  },
+  placeAim: () => placeBlock(),
+  stats: () => {
+    let faces = 0; chunks.forEach((c) => { faces += c.faces; });
+    return { chunks: chunks.size, faces, meshes: scene.children.filter((o) => o.isMesh).length };
+  },
+};
+})();
+</script>
+</body>
+</html>
