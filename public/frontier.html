@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>BrickLab Frontier — Deep World alpha</title>
+<title>BrickLab Frontier — Settlement RPG alpha</title>
 <style>
   :root{ --ink:#0e1520; --panel:rgba(14,21,32,.86); --line:rgba(255,255,255,.16); --hi:#7cc4ff; }
   *{box-sizing:border-box}
@@ -80,6 +80,12 @@
   button.primary{background:var(--hi);border-color:var(--hi);color:#06121f;font-weight:700}
   .row{display:flex;gap:8px;flex-wrap:wrap;margin-top:16px}
   .muted{opacity:.6;font-size:11.5px}
+  #interact{position:fixed;left:50%;bottom:86px;transform:translateX(-50%);background:rgba(14,21,32,.9);
+    border:1px solid var(--line);border-radius:20px;padding:7px 13px;font-weight:700;pointer-events:none}
+  .settler-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:9px;margin:10px 0}
+  .settler-card{background:rgba(255,255,255,.06);border:1px solid var(--line);border-radius:10px;padding:10px}
+  .settler-card b{display:block;color:#ffd166}.settler-card small{display:block;opacity:.66;margin-top:3px}
+  .shop-price{color:#ffd166;font-weight:800}
 </style>
 </head>
 <body>
@@ -109,6 +115,7 @@
   <p id="rpgQuestProgress">Mine 3 logs · 0 / 3</p>
 </div>
 <div id="hotbar" class="hidden"></div>
+<div id="interact" class="hidden">R · Talk to settler</div>
 
 <div id="panel">
   <div class="card" id="card"></div>
@@ -594,7 +601,7 @@ const RPG_QUESTS = [
   { id:'shelter', title:'Raise a shelter', detail:'Place 8 building blocks', kind:'place', target:8, xp:55, coins:10 },
   { id:'guardian', title:'Guard the frontier', detail:'Defeat one hostile creature', kind:'defeat', target:1, xp:75, coins:15 },
 ];
-const freshRpg = () => ({ level:1, xp:0, coins:0, questIndex:0, questProgress:0, completed:[] });
+const freshRpg = () => ({ level:1, xp:0, coins:0, questIndex:0, questProgress:0, completed:[], jobs:{} });
 let rpg = freshRpg();
 const xpNeeded = (level) => 70 + (level - 1) * 45;
 function drawRpgHud() {
@@ -630,6 +637,44 @@ function questEvent(kind, block, amount) {
   }
   drawRpgHud();
 }
+const SETTLEMENT_JOBS = [
+  { id:'mira-foundation', settler:'Mira', role:'Architect', title:'Foundation supplies', detail:'Deliver 8 cobble for the first workshop.', need:[[4,8]], xp:35, coins:18 },
+  { id:'arun-trade', settler:'Arun', role:'Quartermaster', title:'Trading crates', detail:'Deliver 8 planks for storage crates.', need:[[15,8]], xp:30, coins:16 },
+  { id:'leela-light', settler:'Leela', role:'Scout', title:'Light the safe trail', detail:'Deliver 4 torches for the night patrol.', need:[[23,4]], xp:45, coins:22 },
+];
+const FRONTIER_SHOP = [
+  { id:32, n:2, price:6, name:'2 field rations' },
+  { id:23, n:4, price:8, name:'4 torches' },
+  { id:27, n:1, price:24, name:'Stone pick' },
+  { id:31, n:1, price:18, name:'Stone shovel' },
+  { id:28, n:1, price:48, name:'Iron pick' },
+];
+function jobReady(job) {
+  return job.need.every(([id,n]) => (inventory.get(id) || 0) >= n);
+}
+function completeSettlementJob(id) {
+  const job = SETTLEMENT_JOBS.find((item) => item.id === id);
+  if (!job || !jobReady(job)) return false;
+  job.need.forEach(([block,n]) => take(block,n));
+  const count = (rpg.jobs[id] || 0) + 1;
+  rpg.jobs[id] = count;
+  rpg.coins += job.coins;
+  addXp(job.xp);
+  say(job.settler + ': job complete · +' + job.coins + ' marks');
+  openJournal();
+  return true;
+}
+function buyFromTradingPost(index) {
+  const offer = FRONTIER_SHOP[index];
+  if (!offer || rpg.coins < offer.price) { say('You need more frontier marks'); return false; }
+  rpg.coins -= offer.price;
+  give(offer.id, offer.n);
+  if (BLOCKS[offer.id].uses) tools.set(offer.id, BLOCKS[offer.id].uses);
+  drawRpgHud();
+  say('Purchased ' + offer.name);
+  openTradingPost();
+  return true;
+}
 function canCraft(recipe) {
   if (recipe.bench && !nearBench()) return false;
   return recipe.need.every(([id, n]) => (inventory.get(id) || 0) >= n);
@@ -648,6 +693,69 @@ function craft(recipe) {
   addXp(2);
   say('Crafted ' + recipe.name);
   openInventory();
+}
+
+function openInventory() {
+  panelMode = 'inventory';
+  const owned = [...inventory.entries()].filter(([,n]) => n > 0)
+    .map(([id,n]) => `<div class="item"><span class="swatch" style="background:#${BLOCKS[id].colour.toString(16).padStart(6,'0')}"></span><span><b>${BLOCKS[id].name}</b><small class="muted"> × ${n}</small></span></div>`).join('');
+  card.innerHTML = `
+    <h1>Backpack & crafting</h1>
+    <p class="muted">Your gathered materials, tools and build pieces. Some advanced recipes require a nearby workbench.</p>
+    <h2>Backpack</h2><div class="grid">${owned || '<p class="muted">Your backpack is empty.</p>'}</div>
+    <h2>Craft</h2><div id="craftList" class="grid"></div>
+    <div class="row"><button class="primary" id="btnCloseBag">Return to world</button><button id="btnJournalBag">Quest journal</button><button id="btnTradeBag">Trading post</button></div>`;
+  const holder = document.getElementById('craftList');
+  RECIPES.forEach((recipe,index) => {
+    const box = document.createElement('div');
+    box.className = 'recipe';
+    const needs = recipe.need.map(([id,n]) => n + ' ' + BLOCKS[id].name.toLowerCase()).join(' + ');
+    box.innerHTML = `<span><b>${recipe.name}</b><small>${needs}${recipe.bench ? ' · workbench' : ''}</small></span><button ${canCraft(recipe) ? '' : 'disabled'}>Craft</button>`;
+    box.querySelector('button').onclick = () => craft(RECIPES[index]);
+    holder.appendChild(box);
+  });
+  document.getElementById('btnCloseBag').onclick = closePanel;
+  document.getElementById('btnJournalBag').onclick = openJournal;
+  document.getElementById('btnTradeBag').onclick = openTradingPost;
+  panel.classList.remove('hidden');
+  document.exitPointerLock && document.exitPointerLock();
+}
+function openJournal() {
+  panelMode = 'journal';
+  const quest = RPG_QUESTS[rpg.questIndex];
+  const jobs = SETTLEMENT_JOBS.map((job) => {
+    const ready = jobReady(job);
+    const needs = job.need.map(([id,n]) => n + ' ' + BLOCKS[id].name.toLowerCase()).join(' + ');
+    return `<div class="settler-card"><b>${job.settler} · ${job.role}</b><strong>${job.title}</strong><small>${job.detail}</small><p>${needs} · completed ${rpg.jobs[job.id] || 0} times</p><button data-job="${job.id}" ${ready ? '' : 'disabled'}>${ready ? 'Deliver supplies' : 'Gather supplies'}</button></div>`;
+  }).join('');
+  card.innerHTML = `
+    <h1>Frontier journal</h1>
+    <p class="muted">Builder level ${rpg.level} · ${rpg.xp}/${xpNeeded(rpg.level)} XP · ${rpg.coins} frontier marks</p>
+    <h2>Story chapter</h2>
+    <div class="settler-card"><b>${quest ? 'Current quest' : 'Chapter complete'}</b><strong>${quest ? quest.title : 'Founder of the frontier'}</strong><small>${quest ? quest.detail + ' · ' + rpg.questProgress + '/' + quest.target : 'You completed the first settlement chapter.'}</small></div>
+    <h2>Repeatable settlement jobs</h2><div class="settler-grid">${jobs}</div>
+    <div class="row"><button class="primary" id="btnCloseJournal">Return to world</button><button id="btnTradeJournal">Trading post</button><button id="btnBagJournal">Backpack</button></div>`;
+  card.querySelectorAll('[data-job]').forEach((button) => button.onclick = () => completeSettlementJob(button.dataset.job));
+  document.getElementById('btnCloseJournal').onclick = closePanel;
+  document.getElementById('btnTradeJournal').onclick = openTradingPost;
+  document.getElementById('btnBagJournal').onclick = openInventory;
+  panel.classList.remove('hidden');
+  document.exitPointerLock && document.exitPointerLock();
+}
+function openTradingPost() {
+  panelMode = 'trading';
+  const offers = FRONTIER_SHOP.map((offer,index) => `<div class="recipe"><span><b>${offer.name}</b><small>Permanent inventory item</small></span><button data-offer="${index}" ${rpg.coins >= offer.price ? '' : 'disabled'}><span class="shop-price">${offer.price} marks</span></button></div>`).join('');
+  card.innerHTML = `
+    <h1>Arun's trading post</h1>
+    <p>“Frontier marks are earned by helping the settlement. Spend them on supplies you need; the land still expects you to gather the rest.”</p>
+    <p class="muted">Balance: ${rpg.coins} frontier marks</p>
+    <div class="grid">${offers}</div>
+    <div class="row"><button class="primary" id="btnCloseTrade">Return to world</button><button id="btnJournalTrade">Quest journal</button></div>`;
+  card.querySelectorAll('[data-offer]').forEach((button) => button.onclick = () => buyFromTradingPost(Number(button.dataset.offer)));
+  document.getElementById('btnCloseTrade').onclick = closePanel;
+  document.getElementById('btnJournalTrade').onclick = openJournal;
+  panel.classList.remove('hidden');
+  document.exitPointerLock && document.exitPointerLock();
 }
 
 /* ------------------------------------------------------------- day cycle */
@@ -822,7 +930,10 @@ function showTitle() {
       <b>Hold left</b><span>Mine the block you are aiming at, or strike a creature</span>
       <b>Right click</b><span>Place the block in hand, or eat what you are holding</span>
       <b>1 – 9 / wheel</b><span>Choose a hotbar slot</span>
-      <b>E</b><span>Bag and crafting</span>
+      <b>E</b><span>Backpack and crafting</span>
+      <b>J</b><span>Quest journal and settlement jobs</span>
+      <b>T</b><span>Trading post and equipment</span>
+      <b>R</b><span>Talk when you are near Mira, Arun or Leela</span>
       <b>M</b><span>Territory map and expansion</span>
       <b>F</b><span>Creative flight on or off</span>
       <b>Esc</b><span>Release the mouse</span>
@@ -1017,6 +1128,9 @@ addEventListener('keydown', (e) => {
   keys.add(k);
   if (k >= '1' && k <= '9') { hotbarSlot = Number(k) - 1; drawHotbar(); }
   if (k === 'e') { panel.classList.contains('hidden') ? openInventory() : closePanel(); }
+  if (k === 'j') { panel.classList.contains('hidden') ? openJournal() : closePanel(); }
+  if (k === 't') { panel.classList.contains('hidden') ? openTradingPost() : closePanel(); }
+  if (k === 'r' && panel.classList.contains('hidden')) talkToSettler(nearestSettler(4));
   if (k === 'm') { panel.classList.contains('hidden') ? openMap() : closePanel(); }
   if (k === 'f' && panel.classList.contains('hidden')) {
     player.fly = !player.fly; player.vel.set(0, 0, 0);
@@ -1184,7 +1298,7 @@ function applyPayload(d) {
   worldName = d.name || worldName;
   player.pos.fromArray(d.pos); player.yaw = d.yaw; player.pitch = d.pitch;
   player.health = d.health ?? 20; player.food = d.food ?? 20;
-  rpg = d.rpg ? { ...freshRpg(), ...d.rpg, completed:[...(d.rpg.completed || [])] } : freshRpg();
+  rpg = d.rpg ? { ...freshRpg(), ...d.rpg, completed:[...(d.rpg.completed || [])], jobs:{...(d.rpg.jobs || {})} } : freshRpg();
   inventory.clear(); (d.inventory || []).forEach(([id, n]) => inventory.set(id, n));
   tools.clear(); (d.tools || []).forEach(([id, n]) => tools.set(id, n));
   if (d.hotbar) { hotbar.length = 0; d.hotbar.forEach((v) => hotbar.push(v)); }
@@ -1230,6 +1344,71 @@ function importWorld(file, then) {
 /* ---------------------------------------------------------------- creatures
    Original BrickLab wildlife. Grublings surface after dark, stone-biters live
    in the deep, and meadow hoppers graze by day and are the food supply. */
+const SETTLERS = [
+  { id:'mira', name:'Mira', role:'Architect', colour:0xef6f61, trim:0xffd8b5, x:5, z:7,
+    greeting:'We are not merely surviving here. Bring me stone and we will give this frontier a foundation.' },
+  { id:'arun', name:'Arun', role:'Quartermaster', colour:0x3a86ff, trim:0xffd8b5, x:11, z:7,
+    greeting:'Every settlement needs exchange. Complete jobs, earn marks and I will trade tools and supplies.' },
+  { id:'leela', name:'Leela', role:'Scout', colour:0x2a9d8f, trim:0xffd8b5, x:8, z:12,
+    greeting:'The border changes after dark. Light a trail and we can explore farther without losing our way.' },
+];
+const settlers = [];
+function settlerMesh(spec) {
+  const group = new THREE.Group();
+  const skin = new THREE.MeshLambertMaterial({color:new THREE.Color(spec.trim).convertSRGBToLinear()});
+  const cloth = new THREE.MeshLambertMaterial({color:new THREE.Color(spec.colour).convertSRGBToLinear()});
+  const dark = new THREE.MeshLambertMaterial({color:0x263342});
+  const body = new THREE.Mesh(new THREE.BoxGeometry(.55,.72,.32),cloth); body.position.y=1.08; group.add(body);
+  const head = new THREE.Mesh(new THREE.BoxGeometry(.42,.42,.42),skin); head.position.y=1.67; group.add(head);
+  const hair = new THREE.Mesh(new THREE.BoxGeometry(.44,.14,.44),dark); hair.position.y=1.9; group.add(hair);
+  for(const side of [-1,1]){
+    const arm=new THREE.Mesh(new THREE.BoxGeometry(.16,.66,.16),cloth);arm.position.set(side*.38,1.07,0);group.add(arm);
+    const leg=new THREE.Mesh(new THREE.BoxGeometry(.19,.7,.2),dark);leg.position.set(side*.16,.36,0);group.add(leg);
+  }
+  const canvas=document.createElement('canvas'); canvas.width=256; canvas.height=64;
+  const ctx=canvas.getContext('2d'); ctx.fillStyle='rgba(14,21,32,.88)'; ctx.fillRect(0,0,256,64);
+  ctx.fillStyle='#fff'; ctx.font='bold 25px sans-serif'; ctx.textAlign='center'; ctx.fillText(spec.name,128,28);
+  ctx.fillStyle='#bcd0e2'; ctx.font='17px sans-serif'; ctx.fillText(spec.role,128,51);
+  const label=new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(canvas),transparent:true}));
+  label.position.set(0,2.45,0); label.scale.set(3.5,.88,1); group.add(label);
+  return group;
+}
+function spawnSettlers() {
+  settlers.forEach((settler) => scene.remove(settler.group));
+  settlers.length=0;
+  SETTLERS.forEach((spec) => {
+    const y=heightAt(spec.x,spec.z)+1;
+    const group=settlerMesh(spec); group.position.set(spec.x+.5,y,spec.z+.5); scene.add(group);
+    settlers.push({spec,group,pos:new THREE.Vector3(spec.x+.5,y,spec.z+.5)});
+  });
+}
+function nearestSettler(maxDistance) {
+  let nearest=null, distance=maxDistance || 4;
+  settlers.forEach((settler) => { const d=settler.pos.distanceTo(player.pos); if(d<distance){nearest=settler;distance=d;} });
+  return nearest;
+}
+function talkToSettler(settler) {
+  if(!settler){say('Move closer to a settler');return false;}
+  panelMode='dialogue';
+  const job=SETTLEMENT_JOBS.find((item)=>item.settler===settler.spec.name);
+  card.innerHTML=`
+    <h1>${settler.spec.name}</h1><p class="muted">${settler.spec.role}</p>
+    <p style="font-size:16px">“${settler.spec.greeting}”</p>
+    <div class="settler-card"><b>Settlement job</b><strong>${job.title}</strong><small>${job.detail}</small></div>
+    <div class="row"><button class="primary" id="btnNpcJob">${jobReady(job)?'Deliver supplies':'View job'}</button><button id="btnNpcTrade">${settler.spec.name==='Arun'?'Open trading post':'Quest journal'}</button><button id="btnNpcClose">Leave</button></div>`;
+  document.getElementById('btnNpcJob').onclick=()=>jobReady(job)?completeSettlementJob(job.id):openJournal();
+  document.getElementById('btnNpcTrade').onclick=settler.spec.name==='Arun'?openTradingPost:openJournal;
+  document.getElementById('btnNpcClose').onclick=closePanel;
+  panel.classList.remove('hidden'); document.exitPointerLock&&document.exitPointerLock();
+  return true;
+}
+function drawSettlerPrompt() {
+  const nearby=nearestSettler(4);
+  const el=document.getElementById('interact');
+  el.classList.toggle('hidden',!nearby||!panel.classList.contains('hidden'));
+  if(nearby)el.textContent='R · Talk to '+nearby.spec.name+' — '+nearby.spec.role;
+}
+
 const MOBS = {
   grubling: {
     name:'Grubling', hostile:true, health:8, speed:2.6, damage:2, aggro:16,
@@ -1531,6 +1710,7 @@ function frame(now) {
   updateSpawning(dt);
   updateMobs(dt);
   noteDiscovery();
+  drawSettlerPrompt();
 
   const hit = rayVoxel(6);
   if (hit) { highlight.position.set(hit.x + 0.5, hit.y + 0.5, hit.z + 0.5); highlight.visible = true; }
@@ -1571,7 +1751,9 @@ function frame(now) {
 /* ------------------------------------------------------------------ start */
 function startGame(fresh) {
   if (fresh) rpg = freshRpg();
+  if (!rpg.jobs) rpg.jobs = {};
   rebuildBoundary();
+  spawnSettlers();
   if (!inventory.size) { give(1, 8); give(6, 4); }
   player.pos.x = Math.max(-territory + 2, Math.min(territory - 2, player.pos.x));
   player.pos.z = Math.max(-territory + 2, Math.min(territory - 2, player.pos.z));
@@ -1602,6 +1784,7 @@ window.frontier = {
   territory: () => territory, inTerritory, expandTerritory, discovered,
   saveWorld, loadSlot, slotSummary, exportWorld, worldPayload,
   rpg: () => ({ ...rpg, quest:RPG_QUESTS[rpg.questIndex] || null }), questEvent, addXp,
+  settlers, spawnSettlers, nearestSettler, talkToSettler, openJournal, openTradingPost, completeSettlementJob, buyFromTradingPost,
   setSlot: (i) => { activeSlot = i; },
   /* run the world forward deterministically — used by tests, and handy for tuning */
   step: (seconds, dt) => {
