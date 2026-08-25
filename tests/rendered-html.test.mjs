@@ -249,3 +249,30 @@ test("Sprint 1 controls recover safely and save feedback is truthful", async () 
     assert.match(standalone, /pointerleave/);
   }
 });
+
+
+test("homepage presents three distinct BrickLab games", async () => {
+  const page = await readFile(new URL("../app/page.tsx", import.meta.url), "utf8");
+  assert.match(page, /Build Your Dream Cities/);
+  assert.match(page, /BrickLab Frontier/);
+  assert.match(page, /Infinite Plots/);
+  assert.match(page, /href="\/frontier\.html"/);
+  assert.match(page, /href="\/infinite-plots\.html"/);
+  assert.match(page, /Creative competition/);
+  assert.match(page, /Settlement RPG/);
+  assert.match(page, /Persistent build league/);
+});
+
+test("Frontier includes a saved RPG quest and progression loop", async () => {
+  const frontier = await readFile(new URL("../public/frontier.html", import.meta.url), "utf8");
+  assert.match(frontier, /BrickLab Frontier — Settlement RPG/);
+  assert.match(frontier, /const RPG_QUESTS =/);
+  assert.match(frontier, /function questEvent/);
+  assert.match(frontier, /function addXp/);
+  assert.match(frontier, /id="rpgHud"/);
+  assert.match(frontier, /rpg: \{ \.\.\.rpg/);
+  assert.match(frontier, /questEvent\('gather'/);
+  assert.match(frontier, /questEvent\('craft'/);
+  assert.match(frontier, /questEvent\('place'/);
+  assert.match(frontier, /questEvent\('defeat'/);
+});

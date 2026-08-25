@@ -203,6 +203,11 @@ export default function Home() {
     <main className="welcome-shell">
       <nav className="welcome-nav">
         <a className="logo" href="#top" aria-label="BrickLab home"><span className="logo-mark"><i/><i/><i/><i/></span><span>BrickLab</span></a>
+        <div className="welcome-links" aria-label="Game modes">
+          <a href="#dream-cities">Dream Cities</a>
+          <a href="/frontier.html">Frontier RPG</a>
+          <a href="/infinite-plots.html">Infinite Plots</a>
+        </div>
         <span className="beta-pill">Early Builder Access · All pieces unlocked</span>
       </nav>
       <section className="hero" id="top">
@@ -211,11 +216,9 @@ export default function Home() {
           <h1>Build your dream <em>cities.</em></h1>
           <p className="hero-lede">Build your dream city from the ground up, shape land and water, change the weather, then walk, ride and play through everything you create.</p>
           <div className="hero-actions">
-            <button className="cta primary-cta" onClick={() => begin("challenge")}>Start the guided build <span>→</span></button>
-            <button className="cta secondary-cta" onClick={() => begin("free")}>Explore free build</button>
-            <a className="cta world-cta" href="/worldforge.html">Play Open World Alpha</a>
-            <a className="cta world-cta" href="/frontier.html">Play Deep World (new engine)</a>
-            <a className="cta world-cta" href="/infinite-plots.html">Claim an Empty Plot</a>
+            <a className="cta primary-cta" href="#game-universe">Choose your game <span>→</span></a>
+            <button className="cta secondary-cta" onClick={() => begin("challenge")}>Start a city challenge</button>
+            <a className="cta world-cta" href="/frontier.html">Play Frontier RPG</a>
           </div>
           <div className="trust-row"><span><b>01</b> Pick a piece</span><span><b>02</b> Build anything</span><span><b>03</b> Press play</span></div>
         </div>
@@ -228,6 +231,40 @@ export default function Home() {
           <div className="hero-feature feature-walk"><b>03</b><span>Walk inside your world</span></div>
         </div>
       </section>
+      <section className="game-universe" id="game-universe" aria-labelledby="game-universe-title">
+        <div className="universe-heading">
+          <p className="eyebrow"><span/> Three connected ways to play</p>
+          <h2 id="game-universe-title">Build. Adventure. Compete.</h2>
+          <p>Each BrickLab game has a clear purpose. Your creations can eventually move between them without turning every experience into the same game.</p>
+        </div>
+        <div className="universe-grid">
+          <article className="universe-card cities-card" id="dream-cities">
+            <div className="universe-topline"><span>Creative competition</span><b>Alpha</b></div>
+            <strong className="universe-number">01</strong>
+            <h3>Build Your Dream Cities</h3>
+            <p>Create towns and landmark worlds, enter solo or team build challenges, publish finished cities and earn community likes.</p>
+            <ul><li>Guided and free building live</li><li>Showcase worlds live</li><li>Team contests, rankings and publishing next</li></ul>
+            <div className="universe-actions"><button onClick={() => begin("free")}>Build a city</button><a href="#world-gallery-title">Explore demos</a></div>
+          </article>
+          <article className="universe-card frontier-card">
+            <div className="universe-topline"><span>Settlement RPG</span><b>Playable</b></div>
+            <strong className="universe-number">02</strong>
+            <h3>BrickLab Frontier</h3>
+            <p>Play as a frontier builder: explore a finite wilderness, mine resources, survive creatures, complete quests and grow a settlement.</p>
+            <ul><li>Mining, crafting and survival live</li><li>Quests, XP, levels and rewards live</li><li>Settlers, stories and co-op expeditions next</li></ul>
+            <div className="universe-actions"><a className="primary-link" href="/frontier.html">Begin the RPG →</a></div>
+          </article>
+          <article className="universe-card plots-card">
+            <div className="universe-topline"><span>Persistent build league</span><b>Alpha</b></div>
+            <strong className="universe-number">03</strong>
+            <h3>Infinite Plots</h3>
+            <p>Claim a fair restricted plot inside a continuous world, import a Frontier structure and compete without neighbours overwriting your work.</p>
+            <ul><li>Plot claiming and restricted building live</li><li>Open World build import live</li><li>Friends access, seasons and judging next</li></ul>
+            <div className="universe-actions"><a className="primary-link" href="/infinite-plots.html">Claim a plot →</a></div>
+          </article>
+        </div>
+        <p className="universe-roadmap"><b>One BrickLab identity, three game loops.</b> Accounts, teams, likes and seasonal competitions will connect them in a later online release.</p>
+      </section>
       <section className="world-showcase" aria-labelledby="world-gallery-title">
         <div className="world-showcase-head"><div><p className="eyebrow"><span/> Official showcase worlds</p><h2 id="world-gallery-title">Choose a world. Then build your own.</h2></div><p>Explore working cities today and preview the heritage worlds joining BrickLab next. Every world is designed to become an explorable, piece-by-piece build.</p></div>
         <div className="world-gallery">
@@ -239,14 +276,12 @@ export default function Home() {
         {worldNotice && <div className="world-notice" role="status"><span>World selected</span><p>{worldNotice}</p><button onClick={() => setWorldNotice("")} aria-label="Close world message">×</button></div>}
         <div className="world-gallery-footer"><strong>More worlds will keep arriving.</strong><span>Village life · futuristic cities · island towns · mountain settlements · fantasy kingdoms</span></div>
       </section>
-      <section className="mode-grid" aria-label="Ways to play">
-        <article><span className="mode-number">01</span><h2>Build a city from scratch</h2><p>Follow four clear steps to lay roads, connect power, build a home and bring your first neighbourhood to life.</p><button onClick={() => begin("challenge")}>Start city school →</button></article>
-        <article><span className="mode-number">02</span><h2>Everything unlocked</h2><p>Use every brick, city module, vehicle, utility and terrain piece during Early Builder Access.</p><button onClick={() => begin("free")}>Open the full sandbox →</button></article>
-        <article><span className="mode-number">03</span><h2>Grow your world</h2><p>Place editable blueprints side by side, expand the land, add water and experience rain, snow or fog.</p><button onClick={() => begin("free")}>Create my town →</button></article>
-        <article className="open-world-mode"><span className="mode-number">04</span><h2>Play Open World</h2><p>Enter a separate open-world creative game—the foundation for finite territories, resource discovery, trading and earned expansion.</p><a href="/worldforge.html">Enter creative alpha →</a> <a href="/frontier.html">Deep World: endless voxel frontier →</a></article>
-        <article className="open-world-mode"><span className="mode-number">05</span><h2>Build on Infinite Plots</h2><p>Enter a completely empty continuous world, occupy one generous 48 × 48 plot and build only inside your restricted space.</p><a href="/infinite-plots.html">Claim an empty plot →</a></article>
+      <section className="mode-grid" aria-label="How BrickLab grows">
+        <article><span className="mode-number">01</span><h2>Create</h2><p>Learn with guided builds, then use the complete builder library to make original cities, palaces, transport and working systems.</p><button onClick={() => begin("challenge")}>Start city school →</button></article>
+        <article><span className="mode-number">02</span><h2>Adventure</h2><p>Enter Frontier as a playable builder, complete quests, level up and turn gathered materials into a living settlement.</p><a href="/frontier.html">Play the RPG →</a></article>
+        <article><span className="mode-number">03</span><h2>Compete</h2><p>Claim protected land and prepare for themed solo, family, 1v1 and team build leagues with fair plot limits.</p><a href="/infinite-plots.html">Enter Infinite Plots →</a></article>
       </section>
-      <footer>BrickLab is an original building-toy prototype and is not affiliated with the LEGO Group.</footer>
+      <footer>BrickLab is an original building and adventure game universe. It is not affiliated with the LEGO Group or any other block-building game.</footer>
     </main>
   );
 
