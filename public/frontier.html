@@ -40,6 +40,17 @@
   .bar.health i{background:linear-gradient(90deg,#ff5a5a,#ff8f6b)}
   .bar.food i{background:linear-gradient(90deg,#f0a93b,#ffd166)}
   #vitals label{font-size:10.5px;letter-spacing:.6px;text-transform:uppercase;opacity:.7}
+  #rpgHud{position:fixed;left:14px;bottom:84px;width:min(310px,calc(100vw - 28px));background:var(--panel);
+    border:1px solid var(--line);border-radius:12px;padding:11px 13px;box-shadow:0 10px 30px rgba(0,0,0,.24)}
+  #rpgHud .rpgTop{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:7px}
+  #rpgHud .rpgTop b{color:#ffd166;letter-spacing:.6px;text-transform:uppercase;font-size:11px}
+  #rpgHud .rpgTop span{font:700 11px ui-monospace,monospace;opacity:.8}
+  #rpgHud .xp{height:6px;background:rgba(255,255,255,.13);border-radius:6px;overflow:hidden;margin-bottom:10px}
+  #rpgHud .xp i{display:block;height:100%;background:linear-gradient(90deg,#7cc4ff,#b592ff);transition:width .25s}
+  #rpgHud small{display:block;text-transform:uppercase;letter-spacing:.7px;opacity:.58;font-size:9px}
+  #rpgHud strong{display:block;font-size:13px;margin:2px 0}
+  #rpgHud p{margin:0;opacity:.72;font-size:11px}
+  @media(max-width:700px){#rpgHud{bottom:78px;width:240px}}
 
   #hint{position:fixed;left:50%;top:22px;transform:translateX(-50%);background:var(--panel);
     border:1px solid var(--line);border-radius:20px;padding:6px 14px;font-size:12px;opacity:0;
@@ -90,6 +101,13 @@
 </div>
 
 <div id="hint"></div>
+<div id="rpgHud" class="hidden" aria-live="polite">
+  <div class="rpgTop"><b id="rpgLevel">Builder level 1</b><span id="rpgCoins">0 frontier marks</span></div>
+  <div class="xp"><i id="rpgXp" style="width:0%"></i></div>
+  <small>Current quest</small>
+  <strong id="rpgQuest">Gather timber</strong>
+  <p id="rpgQuestProgress">Mine 3 logs · 0 / 3</p>
+</div>
 <div id="hotbar" class="hidden"></div>
 
 <div id="panel">
@@ -568,6 +586,50 @@ const RECIPES = [
   { out:25, n:4, need:[[2,4],[16,1]],    name:'Bricks',      note:'soil fired with coal', bench:true },
   { out:32, n:1, need:[[7,3],[5,1]],     name:'Bread',       note:'a rough field ration' },
 ];
+
+const RPG_QUESTS = [
+  { id:'timber', title:'Gather timber', detail:'Mine 3 logs', kind:'gather', block:6, target:3, xp:30, coins:5 },
+  { id:'planks', title:'Learn the craft', detail:'Craft 4 planks', kind:'craft', block:15, target:4, xp:35, coins:6 },
+  { id:'stone', title:'Stone for a foundation', detail:'Mine 6 stone blocks', kind:'gather', block:3, target:6, xp:45, coins:8 },
+  { id:'shelter', title:'Raise a shelter', detail:'Place 8 building blocks', kind:'place', target:8, xp:55, coins:10 },
+  { id:'guardian', title:'Guard the frontier', detail:'Defeat one hostile creature', kind:'defeat', target:1, xp:75, coins:15 },
+];
+const freshRpg = () => ({ level:1, xp:0, coins:0, questIndex:0, questProgress:0, completed:[] });
+let rpg = freshRpg();
+const xpNeeded = (level) => 70 + (level - 1) * 45;
+function drawRpgHud() {
+  const quest = RPG_QUESTS[rpg.questIndex];
+  document.getElementById('rpgLevel').textContent = 'Builder level ' + rpg.level;
+  document.getElementById('rpgCoins').textContent = rpg.coins + ' frontier marks';
+  document.getElementById('rpgXp').style.width = Math.min(100, rpg.xp / xpNeeded(rpg.level) * 100) + '%';
+  document.getElementById('rpgQuest').textContent = quest ? quest.title : 'Frontier founder';
+  document.getElementById('rpgQuestProgress').textContent = quest
+    ? quest.detail + ' · ' + Math.min(rpg.questProgress, quest.target) + ' / ' + quest.target
+    : 'Chapter one complete · keep building your settlement';
+}
+function addXp(amount) {
+  rpg.xp += amount;
+  while (rpg.xp >= xpNeeded(rpg.level)) {
+    rpg.xp -= xpNeeded(rpg.level);
+    rpg.level += 1;
+    say('Builder level ' + rpg.level + ' reached');
+  }
+  drawRpgHud();
+}
+function questEvent(kind, block, amount) {
+  const quest = RPG_QUESTS[rpg.questIndex];
+  if (!quest || quest.kind !== kind || (quest.block && quest.block !== block)) return;
+  rpg.questProgress += amount || 1;
+  if (rpg.questProgress >= quest.target) {
+    rpg.completed.push(quest.id);
+    rpg.coins += quest.coins;
+    rpg.questIndex += 1;
+    rpg.questProgress = 0;
+    addXp(quest.xp);
+    say('Quest complete: ' + quest.title + ' · +' + quest.coins + ' marks');
+  }
+  drawRpgHud();
+}
 function canCraft(recipe) {
   if (recipe.bench && !nearBench()) return false;
   return recipe.need.every(([id, n]) => (inventory.get(id) || 0) >= n);
@@ -582,6 +644,8 @@ function craft(recipe) {
   if (!canCraft(recipe)) return;
   recipe.need.forEach(([id, n]) => take(id, n));
   give(recipe.out, recipe.n);
+  questEvent('craft', recipe.out, recipe.n);
+  addXp(2);
   say('Crafted ' + recipe.name);
   openInventory();
 }
@@ -664,6 +728,8 @@ function completeBreak(x, y, z, id, toolId) {
   if (!block) return false;
   setBlock(x, y, z, 0);
   give(block.drop || id, 1);
+  questEvent('gather', id, 1);
+  addXp(1);
   if (toolId) wearTool(toolId);
   return true;
 }
@@ -699,7 +765,11 @@ function placeBlock() {
       y >= Math.floor(py) && y <= Math.floor(py + player.height)) return;
   if (getBlock(x, y, z)) return;
   if (!inTerritory(x, z)) { say('Outside your frontier'); return; }
-  if (setBlock(x, y, z, id)) take(id, 1);
+  if (setBlock(x, y, z, id)) {
+    take(id, 1);
+    questEvent('place', id, 1);
+    addXp(1);
+  }
 }
 
 /* ------------------------------------------------------------------- HUD */
@@ -740,8 +810,8 @@ function showTitle() {
   panelMode = 'title';
   const slots = Array.from({ length: SLOTS }, (_, i) => ({ i, info: slotSummary(i) }));
   card.innerHTML = `
-    <h1>BrickLab Frontier — Deep World</h1>
-    <p class="muted">A finite frontier you dig, mine, craft and build in — and expand as you earn it.</p>
+    <h1>BrickLab Frontier — Settlement RPG</h1>
+    <p class="muted">Play as a frontier builder: explore a finite wilderness, complete quests, level up and turn scarce resources into a living settlement.</p>
     <h2>Your worlds</h2>
     <div class="grid" id="slots"></div>
     <h2>Controls</h2>
@@ -757,6 +827,8 @@ function showTitle() {
       <b>F</b><span>Creative flight on or off</span>
       <b>Esc</b><span>Release the mouse</span>
     </div>
+    <h2>Your first chapter</h2>
+    <p>Follow the quest card while you gather timber, learn crafting, lay a stone foundation, build shelter and defend the frontier. Each quest awards experience and frontier marks; progress is saved with your world.</p>
     <h2>Getting started</h2>
     <p>Punch a tree for logs, craft planks, then sticks, then a pickaxe. Stone gives cobble;
        deeper down there is coal, copper, iron, gold and crystal. Grublings surface after dark
@@ -1080,10 +1152,11 @@ function slotSummary(i) {
 
 function worldPayload(name) {
   return {
-    v: 2, name, seed: SEED, clock, territory,
+    v: 3, name, seed: SEED, clock, territory,
     savedAt: Date.now(),
     pos: player.pos.toArray(), yaw: player.yaw, pitch: player.pitch,
     health: player.health, food: player.food,
+    rpg: { ...rpg, completed:[...rpg.completed] },
     inventory: [...inventory.entries()],
     tools: [...tools.entries()],
     hotbar, edits: [...edits.entries()],
@@ -1111,6 +1184,7 @@ function applyPayload(d) {
   worldName = d.name || worldName;
   player.pos.fromArray(d.pos); player.yaw = d.yaw; player.pitch = d.pitch;
   player.health = d.health ?? 20; player.food = d.food ?? 20;
+  rpg = d.rpg ? { ...freshRpg(), ...d.rpg, completed:[...(d.rpg.completed || [])] } : freshRpg();
   inventory.clear(); (d.inventory || []).forEach(([id, n]) => inventory.set(id, n));
   tools.clear(); (d.tools || []).forEach(([id, n]) => tools.set(id, n));
   if (d.hotbar) { hotbar.length = 0; d.hotbar.forEach((v) => hotbar.push(v)); }
@@ -1374,7 +1448,10 @@ function hitMob(mob) {
     const i = mobs.indexOf(mob);
     if (i >= 0) removeMob(i);
     if (mob.spec.drop) give(mob.spec.drop.id, mob.spec.drop.n);
-    say(mob.spec.name + ' defeated');
+    questEvent('defeat', 0, 1);
+    rpg.coins += 2;
+    addXp(12);
+    say(mob.spec.name + ' defeated · +2 frontier marks');
   }
 }
 
@@ -1493,6 +1570,7 @@ function frame(now) {
 
 /* ------------------------------------------------------------------ start */
 function startGame(fresh) {
+  if (fresh) rpg = freshRpg();
   rebuildBoundary();
   if (!inventory.size) { give(1, 8); give(6, 4); }
   player.pos.x = Math.max(-territory + 2, Math.min(territory - 2, player.pos.x));
@@ -1503,8 +1581,8 @@ function startGame(fresh) {
   if (player.pos.y < surface + 1) player.pos.y = surface + 2;
   panel.classList.add('hidden');
   panelMode = 'none';
-  ['stats', 'vitals', 'hotbar'].forEach((id) => document.getElementById(id).classList.remove('hidden'));
-  drawHotbar(); drawVitals();
+  ['stats', 'vitals', 'rpgHud', 'hotbar'].forEach((id) => document.getElementById(id).classList.remove('hidden'));
+  drawHotbar(); drawVitals(); drawRpgHud();
   renderer.domElement.requestPointerLock();
   noteDiscovery();
   say('Left click and hold to mine · E for the bag · M for the map');
@@ -1523,6 +1601,7 @@ window.frontier = {
   setClock: (t) => { clock = t * DAY_LENGTH; },
   territory: () => territory, inTerritory, expandTerritory, discovered,
   saveWorld, loadSlot, slotSummary, exportWorld, worldPayload,
+  rpg: () => ({ ...rpg, quest:RPG_QUESTS[rpg.questIndex] || null }), questEvent, addXp,
   setSlot: (i) => { activeSlot = i; },
   /* run the world forward deterministically — used by tests, and handy for tuning */
   step: (seconds, dt) => {
