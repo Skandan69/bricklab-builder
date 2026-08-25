@@ -230,3 +230,22 @@ test("infinite plots is a separate empty restricted-building mode", async () => 
   assert.match(world, /function copyBuildToEmptyPlot/);
   assert.match(world, /playerBuilt/);
 });
+
+test("Sprint 1 controls recover safely and save feedback is truthful", async () => {
+  const page = await readFile(new URL("../app/page.tsx", import.meta.url), "utf8");
+  const engine = await readFile(new URL("../public/brickforge.html", import.meta.url), "utf8");
+  const world = await readFile(new URL("../public/worldforge.html", import.meta.url), "utf8");
+  const plots = await readFile(new URL("../public/infinite-plots.html", import.meta.url), "utf8");
+
+  assert.match(page, /const saveMyTown = \(\) =>/);
+  assert.match(page, /No valid saved town was found on this device/);
+  assert.match(page, /onClick=\{saveMyTown\}/);
+  assert.match(page, /onClick=\{loadSavedTown\}/);
+  assert.match(engine, /addEventListener\(\'blur\', \(\) => residentKeys\.clear\(\)\)/);
+  assert.match(engine, /browser storage is unavailable or full/);
+  for (const standalone of [world, plots]) {
+    assert.match(standalone, /addEventListener\(\'blur\',\(\)=>keys\.clear\(\)\)/);
+    assert.match(standalone, /pointercancel/);
+    assert.match(standalone, /pointerleave/);
+  }
+});

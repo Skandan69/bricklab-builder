@@ -169,6 +169,23 @@ export default function Home() {
     else setBuildNote(`Assign a structure as ${label} first using Builder tools.`);
     frameRef.current?.focus(); frameRef.current?.contentWindow?.focus();
   };
+  const saveMyTown = () => {
+    const forge = api();
+    if (!forge) { setBuildNote("The builder is still loading. Please try Save again."); return; }
+    try { setBuildNote(forge.saveLocalTown() ? "Town saved on this device." : "Town could not be saved. Check that browser storage is available."); }
+    catch { setBuildNote("Town could not be saved. Check that browser storage is available."); }
+  };
+  const loadSavedTown = () => {
+    const forge = api();
+    if (!forge) { setBuildNote("The builder is still loading. Please try Load again."); return; }
+    try { setBuildNote(forge.loadLocalTown() ? "Saved town loaded." : "No valid saved town was found on this device."); }
+    catch { setBuildNote("The saved town could not be loaded. Start a new plot or import a valid backup."); }
+  };
+  const startNewTown = () => {
+    const forge = api();
+    if (!forge?.startHomePlot()) { setBuildNote("A new plot could not be started. Please reload the builder and try again."); return; }
+    setPlotLabel("32 × 32 starter plot"); setBuildNote("New starter plot ready.");
+  };
   const toggleLike = async () => {
     if (liking) return;
     setLiking(true);
@@ -275,7 +292,7 @@ export default function Home() {
           <div className="rail-look-buttons my-town-rail-look"><button onClick={() => lookRail(Math.PI/2)}>← Look left</button><button onClick={() => lookRail(0)}>Forward</button><button onClick={() => lookRail(-Math.PI/2)}>Look right →</button></div>
           <div className="destination-buttons my-town-destinations"><button onClick={() => visitMyBuilding("home","home")}>Home</button><button onClick={() => visitMyBuilding("restaurant","restaurant")}>Restaurant</button><button onClick={() => visitMyBuilding("hotel","hotel")}>Hotel</button><button onClick={() => visitMyBuilding("shop","shop")}>Shop</button><button onClick={() => visitMyBuilding("school","school")}>School</button><button onClick={() => visitMyBuilding("hospital","hospital")}>Hospital</button><button onClick={() => visitMyBuilding("palace","palace")}>Palace</button><button onClick={() => visitMyBuilding("temple","temple")}>Temple</button><button onClick={() => visitMyBuilding("station","station")}>Station</button></div>
           <div className="plot-card"><small>Current layout</small><b>{plotLabel}</b><button onClick={expandPlot}>＋ Expand plot free</button></div>
-          <div className="view-buttons town-actions"><button onClick={() => { api()?.saveLocalTown(); setBuildNote("Town saved on this device."); }}>▣ Save My Town</button><button onClick={() => { api()?.loadLocalTown(); setBuildNote("Saved town loaded."); }}>↻ Load saved town</button><button onClick={() => { api()?.startHomePlot(); setPlotLabel("32 × 32 starter plot"); setBuildNote("New starter plot ready."); }}>□ New empty plot</button><button onClick={() => addBlueprint("home","Show Home")}>⌂ Add Show Home</button></div>
+          <div className="view-buttons town-actions"><button onClick={saveMyTown}>▣ Save My Town</button><button onClick={loadSavedTown}>↻ Load saved town</button><button onClick={startNewTown}>□ New empty plot</button><button onClick={() => addBlueprint("home","Show Home")}>⌂ Add Show Home</button></div>
           <div className="town-owner"><b>Town owner</b><span>You · Admin</span>{attribution && <small>Based on {attribution}. Attribution stays with copied towns.</small>}<small>Choose whether visitors can make an independent copy. Nobody can edit your original without permission.</small><div className="permission-buttons"><button className={copyAllowed ? "selected" : ""} onClick={() => updateCopyPermission(true)}>Allow copying</button><button className={!copyAllowed ? "selected" : ""} onClick={() => updateCopyPermission(false)}>View only</button></div></div>
         </aside>}
         {!ready && <div className="loading-card"><span className="loader"/>Preparing your workbench…</div>}

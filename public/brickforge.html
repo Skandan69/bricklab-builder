@@ -16271,6 +16271,7 @@ addEventListener('keydown', e => {
   }
 });
 addEventListener('keyup', e => residentKeys.delete(e.key.toLowerCase()));
+addEventListener('blur', () => residentKeys.clear());
 
 /* --------------------------------------------------------------------- UI */
 const hint = document.getElementById('snapState');
@@ -16474,10 +16475,15 @@ function townData() {
   };
 }
 function saveLocalTown() {
-  if (mode === 'play') bakeCurrent();
-  localStorage.setItem(LOCAL_TOWN_KEY, JSON.stringify(townData()));
-  showExperience('My Town saved on this device');
-  return true;
+  try {
+    if (mode === 'play') bakeCurrent();
+    localStorage.setItem(LOCAL_TOWN_KEY, JSON.stringify(townData()));
+    showExperience('My Town saved on this device');
+    return true;
+  } catch (_) {
+    showExperience('My Town could not be saved — browser storage is unavailable or full');
+    return false;
+  }
 }
 function registerWorldTypes(d) {
   const custom=Array.isArray(d && d.customTypes)?d.customTypes:[];
