@@ -134,9 +134,13 @@
 /* ----------------------------------------------------------------- config */
 const CHUNK_X = 16, CHUNK_Y = 96, CHUNK_Z = 16;
 const SEA_LEVEL = 32;
-const RENDER_DIST = 6;              // chunks in each direction
-const GEN_BUDGET = 2;               // chunks generated per frame
-const MESH_BUDGET = 3;              // chunk meshes rebuilt per frame
+const DEVICE_MEMORY = navigator.deviceMemory || 4;
+const CPU_CORES = navigator.hardwareConcurrency || 4;
+const LOW_POWER = DEVICE_MEMORY <= 4 || CPU_CORES <= 4;
+const RENDER_DIST = LOW_POWER ? 3 : 4; // adaptive 29–49 chunk working set
+const GEN_BUDGET = LOW_POWER ? 1 : 2;  // generated per streaming tick
+const MESH_BUDGET = LOW_POWER ? 1 : 2; // rebuilt per streaming tick
+const STREAM_INTERVAL = LOW_POWER ? 0.34 : 0.22;
 const SAVE_KEY = 'bricklab-frontier-v1';
 const DAY_LENGTH = 600;             // seconds for a full day
 
@@ -437,8 +441,14 @@ function applyGeometry(chunk, slot, buf, material) {
 
 /* ------------------------------------------------------------------ scene */
 const scene = new THREE.Scene();
-const renderer = new THREE.WebGLRenderer({ antialias: true });
-renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+let renderer;
+try {
+  renderer = new THREE.WebGLRenderer({ antialias: !LOW_POWER, powerPreference:'high-performance' });
+} catch (error) {
+  document.body.innerHTML = '<main style="max-width:620px;margin:12vh auto;padding:28px;background:#111a26;border-radius:16px"><h1>BrickLab Frontier needs WebGL</h1><p>This browser could not start the 3D renderer. Close other graphics-heavy tabs, update the browser and graphics driver, then reload this page.</p><button onclick="location.reload()">Try again</button></main>';
+  return;
+}
+renderer.setPixelRatio(Math.min(devicePixelRatio, LOW_POWER ? 1 : 1.5));
 renderer.setSize(innerWidth, innerHeight);
 renderer.outputEncoding = THREE.sRGBEncoding;
 document.body.appendChild(renderer.domElement);
@@ -797,7 +807,7 @@ function respawn() {
 function drawVitals() {
   document.getElementById('healthBar').style.width = (player.health / 20 * 100) + '%';
   document.getElementById('foodBar').style.width = (player.food / 20 * 100) + '%';
-  document.getElementById('mode').textContent = player.fly ? 'Creative flight' : 'Survival';
+  document.getElementById('mode').textContent = (player.fly ? 'Creative flight' : 'Survival') + (LOW_POWER ? ' · performance mode' : ' · balanced mode');
 }
 
 /* --------------------------------------------------------------- mining */
@@ -1062,6 +1072,7 @@ function openMap() {
 function closePanel() {
   panel.classList.add('hidden');
   panelMode = 'none';
+  lastSettlerPrompt = '__refresh__';
   renderer.domElement.requestPointerLock();
 }
 
@@ -1402,10 +1413,14 @@ function talkToSettler(settler) {
   panel.classList.remove('hidden'); document.exitPointerLock&&document.exitPointerLock();
   return true;
 }
+let lastSettlerPrompt = '';
 function drawSettlerPrompt() {
   const nearby=nearestSettler(4);
+  const next=nearby&&panel.classList.contains('hidden') ? nearby.spec.id : '';
+  if(next===lastSettlerPrompt)return;
+  lastSettlerPrompt=next;
   const el=document.getElementById('interact');
-  el.classList.toggle('hidden',!nearby||!panel.classList.contains('hidden'));
+  el.classList.toggle('hidden',!next);
   if(nearby)el.textContent='R · Talk to '+nearby.spec.name+' — '+nearby.spec.role;
 }
 
@@ -1636,6 +1651,7 @@ function hitMob(mob) {
 
 /* ------------------------------------------------------------------- loop */
 let last = performance.now(), fpsAcc = 0, fpsFrames = 0, hudTimer = 0, foodTimer = 0, autoSave = 0;
+let streamTimer = 0, lastStreamCx = Infinity, lastStreamCz = Infinity;
 
 function physics(dt) {
   const speed = (player.fly ? 16 : keys.has('shift') ? 8.2 : 5.2);
@@ -1704,13 +1720,19 @@ function frame(now) {
   camera.position.set(player.pos.x, player.pos.y + player.eye, player.pos.z);
   camera.rotation.set(player.pitch, player.yaw, 0, 'YXZ');
 
-  streamChunks();
+  streamTimer -= dt;
+  const streamCx = Math.floor(player.pos.x / CHUNK_X), streamCz = Math.floor(player.pos.z / CHUNK_Z);
+  if (streamTimer <= 0 || streamCx !== lastStreamCx || streamCz !== lastStreamCz) {
+    streamChunks();
+    noteDiscovery();
+    drawSettlerPrompt();
+    streamTimer = STREAM_INTERVAL;
+    lastStreamCx = streamCx; lastStreamCz = streamCz;
+  }
   updateBreaking(dt);
   updateSky(dt);
   updateSpawning(dt);
   updateMobs(dt);
-  noteDiscovery();
-  drawSettlerPrompt();
 
   const hit = rayVoxel(6);
   if (hit) { highlight.position.set(hit.x + 0.5, hit.y + 0.5, hit.z + 0.5); highlight.visible = true; }
@@ -1763,6 +1785,8 @@ function startGame(fresh) {
   if (player.pos.y < surface + 1) player.pos.y = surface + 2;
   panel.classList.add('hidden');
   panelMode = 'none';
+  streamTimer = 0; lastStreamCx = Infinity; lastStreamCz = Infinity;
+  lastSettlerPrompt = '__refresh__';
   ['stats', 'vitals', 'rpgHud', 'hotbar'].forEach((id) => document.getElementById(id).classList.remove('hidden'));
   drawHotbar(); drawVitals(); drawRpgHud();
   renderer.domElement.requestPointerLock();
