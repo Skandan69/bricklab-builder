@@ -40,6 +40,9 @@ const missions = [
   { title: "Build the first home", detail: "Use a doorway and at least eight building pieces.", target: "home" },
   { title: "Bring the town to life", detail: "Press Play to activate your systems.", target: "play" },
 ] as const;
+/* The difficulty scale, in one place. A target harder than this used to crash
+   the page rather than just showing a full row of dots. */
+const MAX_DIFFICULTY = 6;
 const makeVoterId = () => `v${Date.now().toString(36)}${Math.random().toString(36).slice(2,12)}`;
 const showcaseWorlds = [
   { id:"royal", title:"Royal Palace Complex", era:"Buildable heritage landmark", image:"/shots/royal-palace.webp", description:"A fortified compound with corner minarets, a charbagh garden, a domed palace, a stepwell, a bazaar street, a durbar hall and a lake pavilion.", playable:true, accent:"saffron" },
@@ -450,8 +453,12 @@ export default function Home() {
               <article className="challenge-card" key={t.id}>
                 <div className="challenge-art">
                   <img src={t.image} alt={`${t.name} — the structure to copy`} loading="lazy"/>
-                  <span className="challenge-diff" aria-label={`Difficulty ${t.difficulty} of 5`}>
-                    {"●".repeat(t.difficulty)}<i>{"●".repeat(5 - t.difficulty)}</i>
+                  {/* Clamped. The dots were hard-coded to a five-point scale and a
+                      difficulty-6 target made this `"●".repeat(-1)`, which throws and
+                      takes the whole page down with it. */}
+                  <span className="challenge-diff" aria-label={`Difficulty ${t.difficulty} of ${MAX_DIFFICULTY}`}>
+                    {"●".repeat(Math.max(0, Math.min(MAX_DIFFICULTY, t.difficulty)))}
+                    <i>{"●".repeat(Math.max(0, MAX_DIFFICULTY - t.difficulty))}</i>
                   </span>
                 </div>
                 <span className="challenge-kind">Copy the build</span>
