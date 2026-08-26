@@ -41,3 +41,22 @@ export const townLikes = sqliteTable(
   },
   (table) => [index("town_likes_town_idx").on(table.townId)],
 );
+
+/**
+ * A note a player left while playing. Deliberately shallow: one row per note,
+ * with whatever the game knew at the time in `context`, so nobody has to
+ * remember which mode they were in or how far they had got.
+ */
+export const feedback = sqliteTable(
+  "feedback",
+  {
+    id: text("id").primaryKey(),
+    game: text("game").notNull(),
+    rating: integer("rating"),
+    message: text("message").notNull(),
+    context: text("context"),
+    playerId: text("player_id"),
+    createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  },
+  (table) => [index("feedback_recent_idx").on(table.createdAt)],
+);
