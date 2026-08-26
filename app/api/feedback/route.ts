@@ -80,16 +80,22 @@ export async function POST(request: Request) {
     return tooMany("feedback", 3600);
   }
 
-  await db.insert(feedback).values({
-    id: `f${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`,
-    game,
-    rating,
-    message,
-    context,
-    playerId: viewer?.ownerId ?? null,
-    ipHash: address,
-    createdAt: new Date().toISOString(),
-  });
+  try {
+    await db.insert(feedback).values({
+      id: `f${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`,
+      game,
+      rating,
+      message,
+      context,
+      playerId: viewer?.ownerId ?? null,
+      ipHash: address,
+      createdAt: new Date().toISOString(),
+    });
+  } catch {
+    /* Almost always the migration: the code ships with the deploy, the table
+       arrives when someone runs 0003_limits. Say so rather than 500-ing. */
+    return fail("Feedback is not set up yet — run the 0003_limits migration on the database", 503);
+  }
 
   return Response.json({ ok: true }, { status: 201 });
 }
