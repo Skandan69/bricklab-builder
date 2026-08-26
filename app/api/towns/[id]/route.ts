@@ -11,6 +11,21 @@ import {
   isTownId,
   needSignIn,
 } from "../shared";
+/* Named columns, not `.select()` — see the note in ../route.ts: a bare select
+   expands to the whole schema and breaks against a database that has not run
+   the latest migration yet. */
+const TOWN_COLUMNS = {
+  id: towns.id,
+  ownerId: towns.ownerId,
+  ownerName: towns.ownerName,
+  name: towns.name,
+  data: towns.data,
+  brickCount: towns.brickCount,
+  thumb: towns.thumb,
+  visibility: towns.visibility,
+  createdAt: towns.createdAt,
+  updatedAt: towns.updatedAt,
+};
 
 export const dynamic = "force-dynamic";
 
@@ -23,7 +38,7 @@ export async function GET(request: Request, { params }: Params) {
 
   const db = await getAnyDb();
   if (!db) return storageUnavailable();
-  const [row] = await db.select().from(towns).where(eq(towns.id, id)).limit(1);
+  const [row] = await db.select(TOWN_COLUMNS).from(towns).where(eq(towns.id, id)).limit(1);
   if (!row) return fail("Town not found", 404);
 
   const viewer = await currentViewer();
@@ -65,7 +80,7 @@ export async function PATCH(request: Request, { params }: Params) {
 
   const db = await getAnyDb();
   if (!db) return storageUnavailable();
-  const [row] = await db.select().from(towns).where(eq(towns.id, id)).limit(1);
+  const [row] = await db.select(TOWN_COLUMNS).from(towns).where(eq(towns.id, id)).limit(1);
   if (!row) return fail("Town not found", 404);
   if (row.ownerId !== viewer.ownerId) return fail("This town belongs to someone else", 403);
 
@@ -106,7 +121,7 @@ export async function DELETE(request: Request, { params }: Params) {
 
   const db = await getAnyDb();
   if (!db) return storageUnavailable();
-  const [row] = await db.select().from(towns).where(eq(towns.id, id)).limit(1);
+  const [row] = await db.select(TOWN_COLUMNS).from(towns).where(eq(towns.id, id)).limit(1);
   if (!row) return fail("Town not found", 404);
   if (row.ownerId !== viewer.ownerId) return fail("This town belongs to someone else", 403);
 
