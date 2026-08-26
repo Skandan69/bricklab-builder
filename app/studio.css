@@ -799,3 +799,45 @@ kbd {
 .copy-board li em { font-style: normal; font-weight: 600; color: var(--bl-text); font-variant-numeric: tabular-nums; }
 .copy-board li small { color: var(--bl-text-3); font-variant-numeric: tabular-nums; }
 .copy-board > small { font-size: 11px; line-height: 1.45; color: var(--bl-text-3); }
+
+/* --- rankings, in the challenge picker -------------------------------- */
+.rankings {
+  margin-top: 26px;
+  padding: 20px 22px;
+  border: 1px solid var(--bl-line);
+  border-radius: var(--bl-r-m);
+  background: linear-gradient(180deg, var(--bl-surface-2), var(--bl-surface));
+}
+.rankings-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.rankings-head h3 {
+  margin: 0; font-family: var(--bl-display); font-size: 17px; font-weight: 700;
+  letter-spacing: -.02em; color: var(--bl-text);
+}
+.rankings-tabs, .copy-board-tabs { display: flex; gap: 5px; }
+.rankings-tabs button, .copy-board-tabs button {
+  padding: 6px 11px; border-radius: 999px;
+  border: 1px solid var(--bl-line); background: transparent;
+  color: var(--bl-text-3); font: 600 11.5px/1 var(--bl-text-font); cursor: pointer;
+  transition: background var(--bl-t), color var(--bl-t), border-color var(--bl-t);
+}
+.rankings-tabs button:hover, .copy-board-tabs button:hover { color: var(--bl-text); border-color: var(--bl-line-mid); }
+.rankings-tabs button.on, .copy-board-tabs button.on {
+  background: rgba(255,95,66,.15); border-color: rgba(255,95,66,.42); color: var(--bl-brand);
+}
+.rankings-rule { margin: 9px 0 14px; font-size: 12.5px; line-height: 1.55; color: var(--bl-text-3); max-width: 74ch; }
+.rankings-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 3px; }
+.rankings-list li {
+  display: grid; grid-template-columns: 26px 1fr auto auto; align-items: baseline; gap: 12px;
+  padding: 7px 10px; border-radius: 8px; font-size: 13.5px; color: var(--bl-text-2);
+}
+.rankings-list li:nth-child(odd) { background: rgba(255,255,255,.02); }
+.rankings-list li.you { background: rgba(255,95,66,.13); color: var(--bl-text); }
+.rankings-list li b { font-family: var(--bl-display); color: var(--bl-text-3); font-variant-numeric: tabular-nums; }
+.rankings-list li.you b { color: var(--bl-brand); }
+.rankings-list li span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rankings-list li em { font-style: normal; font-weight: 600; color: var(--bl-text); font-variant-numeric: tabular-nums; }
+.rankings-list li small { color: var(--bl-text-3); font-size: 11.5px; }
+.rankings-empty { margin: 10px 0 0; font-size: 12.5px; color: var(--bl-text-3); }
+
+.copy-board-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.copy-board-tabs button { padding: 4px 9px; font-size: 10.5px; }

@@ -20,6 +20,13 @@ type ChallengeResult = {
 };
 type BoardRow = { rank: number; name: string; score: number; seconds: number | null; you: boolean };
 type Board = { items: BoardRow[]; you: { score: number; seconds: number | null; rank: number } | null; storage: boolean };
+type OverallRow = { rank: number; name: string; value: number; extra: number | null; you: boolean };
+type Overall = {
+  board: "cleared" | "accuracy" | "speed";
+  items: OverallRow[];
+  you: { rank: number | null; value: number; extra: number | null; listed: boolean } | null;
+  clearAt?: number; minForAverage?: number; targetCount?: number;
+};
 type Scorer = {
   compare: (target: unknown[], attempt: unknown[], types: Record<string, PieceType>) => ChallengeResult;
 };
@@ -77,6 +84,9 @@ export default function Home() {
   const [board, setBoard] = useState<Board | null>(null);
   const [playerName, setPlayerName] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [boardSort, setBoardSort] = useState<"accuracy" | "speed">("accuracy");
+  const [overall, setOverall] = useState<Overall | null>(null);
+  const [overallBoard, setOverallBoard] = useState<"cleared" | "accuracy" | "speed">("cleared");
   const [ready, setReady] = useState(false);
   const [brickCount, setBrickCount] = useState(0);
   const [pieceTypes, setPieceTypes] = useState<string[]>([]);
@@ -178,11 +188,19 @@ export default function Home() {
     return table;
   };
 
-  const loadBoard = async (targetId: string) => {
+  const loadBoard = async (targetId: string, sort: "accuracy" | "speed" = boardSort) => {
     try {
-      const r = await fetch(`/api/challenges/scores?target=${encodeURIComponent(targetId)}`, { cache: "no-store" });
+      const r = await fetch(`/api/challenges/scores?target=${encodeURIComponent(targetId)}&sort=${sort}`, { cache: "no-store" });
       if (r.ok) setBoard((await r.json()) as Board);
     } catch { /* the board is a bonus; a build still scores without it */ }
+  };
+
+  const loadOverall = async (which: "cleared" | "accuracy" | "speed") => {
+    setOverallBoard(which);
+    try {
+      const r = await fetch(`/api/challenges/board?board=${which}`, { cache: "no-store" });
+      if (r.ok) setOverall((await r.json()) as Overall);
+    } catch { /* rankings are a bonus; the challenges still play without them */ }
   };
 
   const scoreAttempt = async () => {
@@ -397,7 +415,7 @@ export default function Home() {
           <p className="hero-lede">Build your dream city from the ground up, shape land and water, change the weather, then walk, ride and play through everything you create.</p>
           <div className="hero-actions">
             <a className="cta primary-cta" href="#game-universe">Choose your game <span>→</span></a>
-            <button className="cta secondary-cta" onClick={() => { setPickerOpen(true); window.setTimeout(() => document.querySelector(".challenge-picker")?.scrollIntoView({ behavior: "smooth", block: "start" }), 60); }}>Start a city challenge</button>
+            <button className="cta secondary-cta" onClick={() => { setPickerOpen(true); loadOverall(overallBoard); window.setTimeout(() => document.querySelector(".challenge-picker")?.scrollIntoView({ behavior: "smooth", block: "start" }), 60); }}>Start a city challenge</button>
             <a className="cta world-cta" href="/frontier.html">Play Frontier RPG</a>
             <a className="cta world-cta" href="/worldforge.html">Enter the Open World</a>
           </div>
@@ -448,6 +466,58 @@ export default function Home() {
               </article>
             ))}
           </div>
+          <section className="rankings" aria-labelledby="rankings-title">
+            <div className="rankings-head">
+              <h3 id="rankings-title">Rankings</h3>
+              <div className="rankings-tabs">
+                {([
+                  ["cleared", "Most cleared"],
+                  ["accuracy", "Most accurate"],
+                  ["speed", "Fastest"],
+                ] as const).map(([key, label]) => (
+                  <button key={key} className={overallBoard === key ? "on" : ""} onClick={() => loadOverall(key)}>{label}</button>
+                ))}
+              </div>
+            </div>
+            <p className="rankings-rule">
+              {overallBoard === "cleared" && `How many of the ${overall?.targetCount ?? targets.length} structures you have taken to ${overall?.clearAt ?? 90}% or better.`}
+              {overallBoard === "accuracy" && `Your average best score across the challenges you have tried. ${overall?.minForAverage ?? 3} challenges to appear.`}
+              {overallBoard === "speed" && `Average time per structure cleared — ranked per structure, not on total time, so clearing more never counts against you.`}
+            </p>
+            {overall && overall.items.length > 0 ? (
+              <ol className="rankings-list">
+                {overall.items.slice(0, 10).map((row) => (
+                  <li key={`${row.rank}-${row.name}`} className={row.you ? "you" : ""}>
+                    <b>{row.rank}</b>
+                    <span>{row.name}{row.you ? " · you" : ""}</span>
+                    <em>
+                      {overallBoard === "cleared" && `${row.value} cleared`}
+                      {overallBoard === "accuracy" && `${row.value}%`}
+                      {overallBoard === "speed" && `${Math.floor(row.value / 60)}:${String(Math.round(row.value) % 60).padStart(2, "0")}`}
+                    </em>
+                    <small>
+                      {overallBoard === "cleared" && `${row.extra} tried`}
+                      {overallBoard === "accuracy" && `${row.extra} challenges`}
+                      {overallBoard === "speed" && `${row.extra} cleared`}
+                    </small>
+                  </li>
+                ))}
+              </ol>
+            ) : (
+              <p className="rankings-empty">
+                Nobody is on this board yet. Score a challenge and you will be.
+              </p>
+            )}
+            {overall?.you && !overall.you.listed && (
+              <p className="rankings-empty">
+                You are not on this board yet —{" "}
+                {overallBoard === "cleared" && `${overall.you.value} cleared so far.`}
+                {overallBoard === "accuracy" && `${overall.you.value}% average over ${overall.you.extra}; ${overall.minForAverage ?? 3} needed.`}
+                {overallBoard === "speed" && `${overall.you.extra} cleared; ${overall.minForAverage ?? 3} needed.`}
+              </p>
+            )}
+          </section>
+
           <p className="challenge-foot">
             Scoring is shape first: the silhouette is the headline number, with the right piece and the right colour
             adding on top. Build it rotated or a few studs across and it still counts — the floor is ignored, so build up.
@@ -587,23 +657,54 @@ export default function Home() {
             />
           </label>
 
-          {board && board.items.length > 0 && (
+          {board && (
             <div className="copy-board">
-              <h3>Leaderboard</h3>
+              <div className="copy-board-head">
+                <h3>Leaderboard</h3>
+                <div className="copy-board-tabs">
+                  {(["accuracy", "speed"] as const).map((mode) => (
+                    <button
+                      key={mode}
+                      className={boardSort === mode ? "on" : ""}
+                      onClick={() => { setBoardSort(mode); if (target) loadBoard(target.id, mode); }}
+                    >
+                      {mode === "accuracy" ? "Best %" : "Fastest"}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              {board.items.length === 0 && (
+                <p className="copy-detail">
+                  {boardSort === "speed"
+                    ? "Nobody has cleared this one yet. Reach 90% and your time goes on the board."
+                    : "No scores yet. Yours will be the first."}
+                </p>
+              )}
               <ol>
                 {board.items.slice(0, 8).map((row) => (
                   <li key={`${row.rank}-${row.name}`} className={row.you ? "you" : ""}>
                     <b>{row.rank}</b>
                     <span>{row.name}{row.you ? " · you" : ""}</span>
-                    <em>{row.score}%</em>
-                    {row.seconds !== null && <small>{Math.floor(row.seconds / 60)}:{String(row.seconds % 60).padStart(2, "0")}</small>}
+                    {boardSort === "speed"
+                      ? <>
+                          <em>{row.seconds === null ? "–" : `${Math.floor(row.seconds / 60)}:${String(row.seconds % 60).padStart(2, "0")}`}</em>
+                          <small>{row.score}%</small>
+                        </>
+                      : <>
+                          <em>{row.score}%</em>
+                          {row.seconds !== null && <small>{Math.floor(row.seconds / 60)}:{String(row.seconds % 60).padStart(2, "0")}</small>}
+                        </>}
                   </li>
                 ))}
               </ol>
               {board.you && board.you.rank > 8 && (
                 <p className="copy-detail">You are {board.you.rank}th with {board.you.score}%.</p>
               )}
-              <small>Every score here was recalculated on the server from the pieces you placed.</small>
+              <small>
+                {boardSort === "speed"
+                  ? "Fastest run that reached 90%. Recalculated on the server from the pieces you placed."
+                  : "Every score here was recalculated on the server from the pieces you placed."}
+              </small>
             </div>
           )}
 
