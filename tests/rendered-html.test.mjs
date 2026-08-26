@@ -396,3 +396,32 @@ test("Open World hardening: saves, expeditions, economy and varied AI builds", a
   // and the mode is drivable from tests
   assert.match(world, /window\.worldforge=\{/);
 });
+
+test("Frontier night raids give the fourth verb something to defend", async () => {
+  const game = await readFile(new URL("../public/frontier.html", import.meta.url), "utf8");
+
+  // raids exist, and a brand new Camp is left alone
+  assert.match(game, /const RAID_GRACE_TIER = 1/);
+  assert.match(game, /if \(settlementTier\(\) >= RAID_GRACE_TIER\) beginRaid\(\)/);
+  // the settlement has a location, taken from what the player actually built
+  assert.match(game, /function noteSettlementBlock\(x, z\)/);
+  assert.match(game, /function settlementHub\(\)/);
+  assert.match(game, /noteSettlementBlock\(x, z\);/);
+  // raiders walk on the settlement rather than only on the player
+  assert.match(game, /const raiding = mob\.raider && raid\.active && away > 6/);
+  // they eat what the player placed, and only in the dark
+  assert.match(game, /function chewBlock\(mob, dt, x, y, z\)/);
+  assert.match(game, /if \(!id \|\| !edits\.get\(vkey\(x, y, z\)\)\) return false;/);
+  assert.match(game, /if \(litNearby\(x, y, z, RAID_LIGHT_RADIUS\)\) \{ mob\.chew = 0; return false; \}/);
+  // settlers can be driven off, and light protects them
+  assert.match(game, /function harmSettler\(settler, amount\)/);
+  assert.match(game, /SETTLER_LIGHT_RADIUS\)\) return;/);
+  assert.match(game, /if\(settler\.down\)/);
+  // dawn ends it and puts everyone back
+  assert.match(game, /function endRaid\(\)/);
+  assert.match(game, /if \(settler\.down\) \{ settler\.down = false; settler\.group\.visible = true;/);
+  // the loop and the test stepper both drive it
+  assert.match(game, /updateSky\(dt\);\n  updateRaid\(dt\);/);
+  // and the box copy is now true rather than aspirational
+  assert.match(game, /Light the settlement before dusk, or raiders break what you built\./);
+});
