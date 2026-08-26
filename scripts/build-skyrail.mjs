@@ -59,9 +59,9 @@ function fill(typeId, color, x0, z0, x1, z1, step, y = 0) {
 }
 
 /* ------------------------------------------------------------------ plan */
-const EDGE = 60;                       // the district runs -60..60 both ways
-const AVENUES = [-48, -24, 0, 24, 48]; // road centre lines, 24 studs apart
-const BLOCKS = [-36, -12, 12, 36];     // block centres between them
+const EDGE = 108;                      // the district runs -108..108 both ways
+const AVENUES = [-96, -72, -48, -24, 0, 24, 48, 72, 96];   // 24 studs apart
+const BLOCKS = [-84, -60, -36, -12, 12, 36, 60, 84];       // centres between them
 const RAIL_Z = 24;                     // the elevated line runs east–west here
 const RAIL_Y = BRICK_H * 7;
 
@@ -69,12 +69,18 @@ const isAvenue = (v) => AVENUES.some((a) => Math.abs(v - a) < 2.1);
 
 /* Blocks need a surface of their own, or the district reads as buildings
    dropped on an empty lawn between strips of road. */
+/* Four zones: downtown north-east, park south-west, homes north-west, and a
+   mixed low-rise quarter south-east. */
+const zoneOf = (bx, bz) => (bx > 0 && bz < 0) ? "downtown"
+  : (bx < 0 && bz > 0) ? "park"
+  : (bx < 0 && bz < 0) ? "homes" : "mixed";
+
 function blockGround() {
   for (const bx of BLOCKS) {
     for (const bz of BLOCKS) {
-      const park = bx < 0 && bz > 0;
-      const homes = bx < 0 && bz < 0;
-      fill(park || homes ? "grass8" : "p8x8", park || homes ? C.lawn : C.paving,
+      const zone = zoneOf(bx, bz);
+      const green = zone === "park" || zone === "homes";
+      fill(green ? "grass8" : "p8x8", green ? C.lawn : C.paving,
         bx - 8, bz - 8, bx + 8, bz + 8, 8);
     }
   }
@@ -134,15 +140,19 @@ function tower(x, z, floors, glass, trim) {
 }
 
 function downtown() {
-  const spec = [
-    /* One or two glass modules each. Three made a 58-stud monolith that
-       dwarfed the rest of the district and read as a wall, not a skyline. */
-    [12, -36, 2, C.glassA, C.trim],
-    [36, -36, 1, C.glassB, C.steelDark],
-    [12, -12, 2, C.glassB, C.trim],
-    [36, -12, 1, C.glassA, C.steelDark],
-    [36, 12, 1, C.glassA, C.trim],
-  ];
+  /* Height falls off from the core, so the quadrant reads as a skyline rather
+     than a field of identical blocks. Three modules was a monolith; two is a
+     tower and one is an office block. */
+  const spec = [];
+  for (const x of [12, 36, 60, 84]) {
+    for (const z of [-12, -36, -60, -84]) {
+      const d = Math.max(Math.abs(x), Math.abs(z));
+      const floors = d <= 36 ? 2 : d <= 60 ? 1 : 1;
+      if (d > 60 && (x + z) % 48 === 0) continue;      // leave gaps at the rim
+      spec.push([x, z, floors, (x / 24 + z / 24) % 2 ? C.glassA : C.glassB,
+                 (x + z) % 48 === 0 ? C.trim : C.steelDark]);
+    }
+  }
   for (const [x, z, floors, glass, trim] of spec) tower(x, z, floors, glass, trim);
   // a paved plaza between the towers, with planting and seating
   fill("plaza8", C.paving, 12 - 4, 12 - 4, 12 + 4, 12 + 4, 8, 0);
@@ -158,11 +168,19 @@ function downtown() {
 
 /* ------------------------------------------------------------------ park */
 function park() {
-  for (const bx of [-36, -12]) {
-    for (const bz of [12, 36]) fill("grass8", C.lawn, bx - 8, bz - 8, bx + 8, bz + 8, 8);
+  for (const bx of [-84, -60, -36, -12]) {
+    for (const bz of [12, 36, 60, 84]) fill("grass8", C.lawn, bx - 8, bz - 8, bx + 8, bz + 8, 8);
   }
+  // a lake, sitting on the grass rather than fighting it for the same plane
+  fill("water8", C.glassA, -76, 52, -20, 92, 8, PLATE_H);
+  for (let x = -80; x <= -16; x += 8) {
+    put("fence1x4", C.steelDark, x, PLATE_H, 48, 90);
+    put("bench2", C.steelDark, x, PLATE_H, 45, 90);
+    put("tree4", C.lawn, x, PLATE_H, 96);
+  }
+  put("pavilion6", C.wallA, -48, PLATE_H, 72);
   // a pond with a planted edge
-  fill("water8", C.glassA, -28, 28, -12, 44, 8, 0);
+  fill("water8", C.glassA, -28, 28, -12, 44, 8, PLATE_H);
   for (let x = -36; x <= -4; x += 8) {
     put("bush2", C.lawn, x, PLATE_H, 20);
     put("bush2", C.lawn, x, PLATE_H, 52);
@@ -178,6 +196,35 @@ function park() {
   }
   put("pavilion6", C.wallA, -20, PLATE_H, 44);
   for (let x = -46; x <= -2; x += 4) put("fence1x4", C.steelDark, x, PLATE_H, 2, 90);
+
+  /* Plant the rest of the quadrant. Sixteen bare grass blocks read as a field
+     nobody has finished, not as parkland. */
+  for (const bx of [-84, -60, -36, -12]) {
+    for (const bz of [12, 36, 60, 84]) {
+      if (bx <= -20 && bz >= 52) continue;            // the lake
+      const roll = (bx / 12 + bz / 12) % 4;
+      if (roll === 0) {
+        for (const [ox, oz] of [[-5, -5], [5, -5], [-5, 5], [5, 5], [0, 0]]) {
+          put("tree4", C.lawn, bx + ox, PLATE_H, bz + oz);
+        }
+      } else if (roll === 1) {
+        fill("plaza8", C.paving, bx - 4, bz - 4, bx + 4, bz + 4, 8, 0);
+        put("fountain4", C.paving, bx, PLATE_H, bz);
+        for (const oz of [-6, 6]) put("bench2", C.steelDark, bx, PLATE_H, bz + oz, 90);
+      } else if (roll === 2) {
+        put("pavilion6", C.wallA, bx, PLATE_H, bz);
+        for (const ox of [-7, 7]) put("bush2", C.lawn, bx + ox, PLATE_H, bz);
+      } else {
+        for (let ox = -6; ox <= 6; ox += 4) {
+          put("bush2", C.lawn, bx + ox, PLATE_H, bz - 5);
+          put("tree4", C.lawn, bx + ox, PLATE_H, bz + 5);
+        }
+      }
+      put("lampPost", C.steelDark, bx - 8, PLATE_H, bz - 8);
+    }
+  }
+  // a path running the length of the park
+  for (let z = 8; z <= 96; z += 4) put("t4x4", C.paving, -48, PLATE_H, z);
 }
 
 /* ----------------------------------------------------------------- homes */
@@ -215,8 +262,8 @@ function homes() {
     [C.wallA, C.roofB],
   ];
   let i = 0;
-  for (const bz of [-36, -12]) {
-    for (const bx of [-36, -12]) {
+  for (const bz of [-84, -60, -36, -12]) {
+    for (const bx of [-84, -60, -36, -12]) {
       for (const ox of [-6, 6]) {
         const [wall, roof] = palette[i++ % palette.length];
         house(bx + ox, bz, wall, roof);
@@ -227,6 +274,39 @@ function homes() {
   for (const z of [-36, -12]) {
     put("shopfront4", C.brickTan, -3, PLATE_H, z, 0);
     put("awning4", C.accent, -5, BRICK_H * 3, z, 0);
+  }
+}
+
+/* ------------------------------------------------------- the mixed quarter */
+/* South-east: shops on the street, low offices behind, a civic square. */
+function mixedQuarter() {
+  for (const bx of [12, 36, 60, 84]) {
+    for (const bz of [12, 36, 60, 84]) {
+      if (bx === 36 && bz === 36) {          // the civic square
+        fill("plaza8", C.paving, bx - 8, bz - 8, bx + 8, bz + 8, 8, 0);
+        put("fountain4", C.paving, bx, PLATE_H, bz);
+        for (const [ox, oz] of [[-6, -6], [6, -6], [-6, 6], [6, 6]]) {
+          put("tree4", C.lawn, bx + ox, PLATE_H, bz + oz);
+          put("bench2", C.steelDark, bx + ox, PLATE_H, bz + (oz > 0 ? 3 : -3), 90);
+        }
+        put("canopy8", C.steel, bx, PLATE_H, bz - 8);
+        continue;
+      }
+      // a block of low offices with shopfronts facing the street
+      for (const ox of [-4, 4]) {
+        for (const oz of [-4, 4]) {
+          put("tower8", (ox + oz) % 8 === 0 ? C.brickTan : C.wallB, bx + ox, PLATE_H, bz + oz);
+          put("p8x8", C.steel, bx + ox, PLATE_H + BRICK_H * 6, bz + oz);
+        }
+      }
+      put("hvac4", C.steelDark, bx, PLATE_H + BRICK_H * 6 + PLATE_H, bz);
+      for (const oz of [-9, 9]) {
+        put("shopfront4", C.brickTan, bx, PLATE_H, bz + oz, oz < 0 ? 0 : 180);
+        put("awning4", C.accent, bx, BRICK_H * 3, bz + oz + (oz < 0 ? -2 : 2), 0);
+      }
+      put("lampPost", C.steelDark, bx - 9, PLATE_H, bz);
+      put("tree4", C.lawn, bx + 9, PLATE_H, bz);
+    }
   }
 }
 
@@ -251,8 +331,8 @@ function railway() {
   for (let x = -12; x <= 12; x += 8) {
     put("platform8", C.paving, x, y + BRICK_H, RAIL_Z - 4, 90);
     put("platform8", C.paving, x, y + BRICK_H, RAIL_Z + 4, 90);
-    put("canopy8", C.trim, x, y + BRICK_H + PLATE_H, RAIL_Z - 6);
-    put("canopy8", C.trim, x, y + BRICK_H + PLATE_H, RAIL_Z + 6);
+    put("canopy8", C.steel, x, y + BRICK_H + PLATE_H, RAIL_Z - 6);
+    put("canopy8", C.steel, x, y + BRICK_H + PLATE_H, RAIL_Z + 6);
   }
   /* Access towers rather than a ramp: six stacked 4×4 steps overlapped into a
      white wedge that read as a landslide. */
@@ -261,8 +341,17 @@ function railway() {
     put("steps4", C.concrete, ox, 0, RAIL_Z - 12, 0);
     put("lamp", C.accent, ox + 4, PLATE_H, RAIL_Z - 12);
   }
-  put("signal1", C.trim, 20, y + BRICK_H, RAIL_Z - 3);
-  put("signal1", C.trim, -20, y + BRICK_H, RAIL_Z + 3);
+  // a second stop out at the west end, so the line serves the whole district
+  for (let x = -76; x <= -60; x += 8) {
+    put("platform8", C.paving, x, y + BRICK_H, RAIL_Z - 4, 90);
+    put("platform8", C.paving, x, y + BRICK_H, RAIL_Z + 4, 90);
+    put("canopy8", C.steel, x, y + BRICK_H + PLATE_H, RAIL_Z - 6);
+  }
+  for (const ox of [-80, -56]) {
+    for (let c = 0; c < 6; c++) put("b2x4", C.concrete, ox, c * BRICK_H, RAIL_Z - 8, 90);
+    put("steps4", C.concrete, ox, 0, RAIL_Z - 12, 0);
+  }
+  for (const x of [-88, -44, 20, 64]) put("signal1", C.trim, x, y + BRICK_H, RAIL_Z - 3);
 }
 
 /* ------------------------------------------------------------ street life */
@@ -287,6 +376,7 @@ function streetFurniture() {
 blockGround();
 streets();
 downtown();
+mixedQuarter();
 park();
 homes();
 railway();

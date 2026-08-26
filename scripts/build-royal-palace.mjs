@@ -68,17 +68,24 @@ function ground(typeId, color, x0, z0, cols, rows, y = 0) {
   }
 }
 
+/** Tile a rectangle given in world coordinates, inclusive of both ends. */
+function tile(typeId, color, x0, z0, x1, z1, step = 8, y = 0) {
+  for (let x = x0; x <= x1; x += step) {
+    for (let z = z0; z <= z1; z += step) put(typeId, color, x, y, z);
+  }
+}
+
 /* ------------------------------------------------------------- the layout */
 /* A 112-stud compound centred on the origin. The gateway is due south, the
    charbagh garden fills the southern half, the palace stands on the axis to
    the north, with the bazaar down the west edge and the stepwell to the east.
    Everything is sized off HALF so the whole plan scales from one number. */
-const HALF = 56;
+const HALF = 92;
 const IN = HALF - 4;          // the last tile inside the wall
 
-const GARDEN_Z = -30;         // centre of the charbagh
-const PALACE_Z = 20;          // centre of the palace block
-const COURT_Z = 46;           // the reflecting pool court behind it
+const GARDEN_Z = -50;         // centre of the charbagh
+const PALACE_Z = 14;          // centre of the palace block
+const COURT_Z = 56;           // the reflecting pool court behind it
 
 function compoundFloor() {
   ground("p8x8", C.sand, -IN, -IN, (IN * 2) / 8 + 1, (IN * 2) / 8 + 1);
@@ -103,7 +110,7 @@ function outerWall() {
   }
   // bastions halfway along each run, so 112 studs of wall is not one flat line
   for (const s of [-1, 1]) {
-    for (const along of [-28, 28]) {
+    for (const along of [-56, -28, 28, 56]) {
       for (const [x, z] of [[along, s * HALF], [s * HALF, along]]) {
         for (let c = 0; c < 4; c++) put("r4x4", C.redDark, x, c * BRICK_H, z);
         put("chhatri4", C.marble, x, 4 * BRICK_H, z);
@@ -278,7 +285,7 @@ function palace() {
 
 /* ------------------------------------------------------------- stepwell -- */
 function stepwell() {
-  const x = 36, z = 4;
+  const x = 60, z = 4;
   ground("p8x8", C.stone, x - 12, z - 12, 4, 4);
   for (const ox of [-4, 4]) {
     for (const oz of [-4, 4]) put("stepwell8", C.stone, x + ox, PLATE_H, z + oz);
@@ -291,8 +298,8 @@ function stepwell() {
 
 /* --------------------------------------------------------------- bazaar -- */
 function bazaar() {
-  const x = -38;
-  for (let z = -12; z <= 36; z += 8) {
+  const x = -62;
+  for (let z = -20; z <= 44; z += 8) {
     put("shopfront4", C.sand, x - 6, 0, z, 0);
     put("shopfront4", C.sand, x + 6, 0, z, 0);
     const flip = z % 16 === 0;
@@ -301,11 +308,11 @@ function bazaar() {
     put("bench2", C.teak, x - 2, 0, z + 3);
     put("bench2", C.teak, x + 2, 0, z - 3);
   }
-  for (let z = -8; z <= 32; z += 16) {
+  for (let z = -16; z <= 40; z += 16) {
     put("parasol1", C.awningB, x, 0, z);
     put("lampPost", C.stone, x - 3, 0, z + 8);
   }
-  put("torana8", C.sand, x, 0, -18, 90);
+  put("torana8", C.sand, x, 0, -28, 90);
 }
 
 /* ---------------------------------------------------------- north court -- */
@@ -330,7 +337,7 @@ function northCourt() {
 /* The compound was mostly empty sand on this side. A pillared durbar hall and
    a run of stables give the east half something to be. */
 function eastCourt() {
-  const x = 34, z = -30;
+  const x = 58, z = -50;
   ground("p8x8", C.sandDark, x - 12, z - 16, 4, 5);
   // durbar hall: a colonnade square under a tiered roof
   for (let oz = -12; oz <= 12; oz += 8) {
@@ -361,6 +368,115 @@ function perimeterPlanting() {
   }
 }
 
+
+/* ------------------------------------------------------------- the lake -- */
+/* A pleasure lake behind the palace with a marble pavilion on an island,
+   reached by a causeway — the piece of a royal compound that says leisure
+   rather than administration. */
+function lake() {
+  const cx = 52, cz = 56;
+  tile("water8", C.water, cx - 24, cz - 20, cx + 24, cz + 20, 8, PLATE_H);
+  for (let x = -28; x <= 28; x += 8) {
+    put("ghat8", C.stone, cx + x, 0, cz - 24, 0);
+    put("parapet8", C.marble, cx + x, PLATE_H, cz + 24, 90);
+  }
+  for (let z = cz - 22; z <= cz - 8; z += 4) put("p8x8", C.marbleWarm, cx, PLATE_H, z);
+  for (let c = 0; c < 2; c++) {
+    tile("p8x8", C.marbleWarm, cx - (8 - c * 4), cz - (8 - c * 4), cx + (8 - c * 4), cz + (8 - c * 4), 8, c * BRICK_H);
+  }
+  put("pavilion6", C.marble, cx, BRICK_H * 2, cz);
+  for (const ox of [-8, 8]) put("chhatri4", C.gold, cx + ox, BRICK_H * 2, cz);
+  for (const ox of [-26, 26]) {
+    put("palm2", C.grassDark, cx + ox, 0, cz - 20);
+    put("palm2", C.grassDark, cx + ox, 0, cz + 20);
+  }
+}
+
+/* ------------------------------------------------------ the outer courts - */
+/* The working half of a palace: kitchens, stores, barracks and the elephant
+   lines, in a colonnaded court along the west wall. */
+function serviceCourt() {
+  const cx = -60, cz = -20;
+  ground("p8x8", C.sandDark, cx - 20, cz - 24, 6, 7);
+  for (let z = -20; z <= 20; z += 8) {
+    put("colonnade8", C.sandDark, cx - 18, 0, cz + z, 0);
+    put("colonnade8", C.sandDark, cx + 14, 0, cz + z, 0);
+  }
+  for (let x = -12; x <= 8; x += 8) {
+    put("mandapa8", C.sand, cx + x, 0, cz - 22);
+    put("mandapa8", C.sand, cx + x, 0, cz + 22);
+  }
+  for (const oz of [-12, 0, 12]) put("elephant", C.stone, cx, 0, cz + oz, 90);
+  for (const oz of [-18, 18]) put("horse", C.teak, cx, 0, cz + oz, 90);
+  for (let i = 0; i < 12; i++) put("palaceGuard", "#33528f", cx - 16, PLATE_H, cz - 20 + i * 3.5);
+}
+
+/* --------------------------------------------------------- the orchards -- */
+function orchards() {
+  for (const [cx, cz] of [[-66, 66], [66, -70], [-66, -70]]) {
+    ground("grass8", C.grass, cx - 12, cz - 12, 4, 4);
+    for (let x = -10; x <= 10; x += 5) {
+      for (let z = -10; z <= 10; z += 5) put("tree4", C.grassDark, cx + x, PLATE_H, cz + z);
+    }
+    put("pool8", C.water, cx, PLATE_H, cz);
+  }
+}
+
+/* -------------------------------------------------------------- the court */
+/* People, so the compound is inhabited rather than empty. */
+let seed = 20260826;
+const rnd = () => (seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296;
+
+function courtLife() {
+  /* Scattered inside the wall, from a seeded sequence so the compound is the
+     same every time it is generated. The first pass put half of them outside
+     the wall — the x term was subtracting IN twice. */
+  for (let i = 0; i < 46; i++) {
+    const x = (rnd() * 2 - 1) * (IN - 8);
+    const z = (rnd() * 2 - 1) * (IN - 8);
+    put(["resident", "merchant", "child", "palaceGuard"][i % 4],
+      ["#e8892b", "#a8397a", "#33528f", "#2f7d5a"][i % 4], x, PLATE_H, z);
+  }
+  for (const [x, z] of [[0, -70], [0, 70], [-70, 0], [70, 0]]) {
+    put("carriage", C.teak, x, 0, z, Math.abs(x) > Math.abs(z) ? 90 : 0);
+  }
+}
+
+
+/* Whatever is still bare paving gets a use: small tanks, tree courts and
+   shaded pavilions on a grid, skipping anything already built on. */
+function fillTheCourt() {
+  const built = (x, z) =>
+    (Math.abs(x) < 34 && z > -8 && z < 40) ||           // the palace block
+    (Math.abs(x - 60) < 20 && Math.abs(z - 4) < 24) ||  // the stepwell
+    (Math.abs(x + 62) < 14 && z > -28 && z < 52) ||     // the bazaar
+    (Math.abs(x - 58) < 22 && Math.abs(z + 50) < 24) || // the durbar hall
+    (Math.abs(x - 52) < 30 && Math.abs(z - 56) < 26) || // the lake
+    (Math.abs(x + 60) < 24 && Math.abs(z + 20) < 28) || // the service court
+    (Math.abs(z - GARDEN_Z) < 22 && Math.abs(x) < 40) || // the charbagh
+    (Math.abs(z - COURT_Z) < 14 && Math.abs(x) < 36);    // the pool court
+  for (let x = -IN + 8; x <= IN - 8; x += 16) {
+    for (let z = -IN + 8; z <= IN - 8; z += 16) {
+      if (built(x, z)) continue;
+      const roll = rnd();
+      if (roll < 0.34) {
+        put("tree4", C.grassDark, x, PLATE_H, z);
+        put("bush2", C.grass, x + 4, PLATE_H, z + 3);
+      } else if (roll < 0.56) {
+        put("grass8", C.grass, x, 0, z);
+        put("parterre8", C.hedge, x, PLATE_H, z);
+      } else if (roll < 0.72) {
+        put("pool8", C.water, x, PLATE_H, z);
+        put("parapet8", C.marble, x, PLATE_H, z - 5, 90);
+      } else if (roll < 0.86) {
+        put("pavilion6", C.marble, x, 0, z);
+      } else {
+        put("mandapa8", C.sandDark, x, 0, z);
+      }
+    }
+  }
+}
+
 /* ------------------------------------------------------------------ build */
 compoundFloor();
 outerWall();
@@ -372,6 +488,11 @@ stepwell();
 bazaar();
 northCourt();
 eastCourt();
+lake();
+serviceCourt();
+orchards();
+courtLife();
+fillTheCourt();
 perimeterPlanting();
 
 if (bricks.length > MAX_BRICKS) {
