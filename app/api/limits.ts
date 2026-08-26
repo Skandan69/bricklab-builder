@@ -44,31 +44,71 @@ export const tooMany = (what: string, retryAfterSeconds = 300) =>
     { status: 429, headers: { "retry-after": String(retryAfterSeconds) } },
   );
 
+/**
+ * The migration and the deploy are separate events, and on Vercel the code can
+ * land minutes before anyone runs `0003_limits`. Until it has, `towns.ip_hash`
+ * and the whole `feedback` table are missing, and every query below throws —
+ * which took the public saved-towns endpoint down with a 500 the first time.
+ *
+ * A rate limit is a safeguard, not the feature. If the column it counts is not
+ * there yet, the honest behaviour is to skip that one check and let the request
+ * through, not to fail the request. Each probe runs once per instance.
+ */
+let addressLimitsReady: boolean | null = null;
+
+export async function limitsSchemaReady(db: BrickLabDb): Promise<boolean> {
+  if (addressLimitsReady !== null) return addressLimitsReady;
+  try {
+    await db.select({ value: count() }).from(feedback).limit(1);
+    addressLimitsReady = true;
+  } catch {
+    addressLimitsReady = false;
+  }
+  return addressLimitsReady;
+}
+
+/** Run a count, and treat "that column does not exist yet" as "no history". */
+async function countOrZero(run: () => Promise<number>): Promise<number> {
+  try {
+    return await run();
+  } catch {
+    return 0;
+  }
+}
+
 export async function feedbackFromAddress(db: BrickLabDb, hash: string, from: string) {
+  return countOrZero(async () => {
   const [row] = await db
     .select({ value: count() })
     .from(feedback)
     .where(and(eq(feedback.ipHash, hash), gt(feedback.createdAt, from)));
   return row?.value ?? 0;
+  });
 }
 
 export async function feedbackFromPlayer(db: BrickLabDb, playerId: string, from: string) {
+  return countOrZero(async () => {
   const [row] = await db
     .select({ value: count() })
     .from(feedback)
     .where(and(eq(feedback.playerId, playerId), gt(feedback.createdAt, from)));
   return row?.value ?? 0;
+  });
 }
 
 export async function townsFromAddress(db: BrickLabDb, hash: string, from: string) {
+  return countOrZero(async () => {
   const [row] = await db
     .select({ value: count() })
     .from(towns)
     .where(and(eq(towns.ipHash, hash), gt(towns.createdAt, from)));
   return row?.value ?? 0;
+  });
 }
 
 export async function townsOwnedBy(db: BrickLabDb, ownerId: string) {
-  const [row] = await db.select({ value: count() }).from(towns).where(eq(towns.ownerId, ownerId));
-  return row?.value ?? 0;
+  return countOrZero(async () => {
+    const [row] = await db.select({ value: count() }).from(towns).where(eq(towns.ownerId, ownerId));
+    return row?.value ?? 0;
+  });
 }
