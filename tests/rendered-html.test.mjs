@@ -100,8 +100,8 @@ test("open world is a separate playable creative mode", async () => {
   const page = await readFile(new URL("../app/page.tsx", import.meta.url), "utf8");
   const world = await readFile(new URL("../public/worldforge.html", import.meta.url), "utf8");
 
-  assert.match(page, /Play Open World Alpha/);
-  assert.match(page, /href="\/worldforge\.html"/);
+  assert.match(page, /Play Frontier RPG/);
+  assert.match(page, /href="\/frontier\.html"/);
   assert.match(world, /BrickLab Frontier/);
   assert.match(world, /function generate\(\)/);
   assert.match(world, /function gatherBlock\(\)/);
@@ -205,7 +205,7 @@ test("infinite plots is a separate empty restricted-building mode", async () => 
   const plots = await readFile(new URL("../public/infinite-plots.html", import.meta.url), "utf8");
   const world = await readFile(new URL("../public/worldforge.html", import.meta.url), "utf8");
 
-  assert.match(page, /Claim an Empty Plot/);
+  assert.match(page, /Claim a plot/);
   assert.match(page, /href="\/infinite-plots\.html"/);
   assert.match(plots, /BrickLab Infinite Plots/);
   assert.match(plots, /Empty World Alpha/);
@@ -308,4 +308,38 @@ test("Frontier performance regression guard uses adaptive and throttled streamin
   assert.match(frontier, /lastSettlerPrompt/);
   assert.match(frontier, /BrickLab Frontier needs WebGL/);
   assert.match(frontier, /performance mode/);
+});
+
+test("Frontier RPG hardening: saves, pausing, economy and settlement tiers", async () => {
+  const game = await readFile(new URL("../public/frontier.html", import.meta.url), "utf8");
+
+  // the title screen owns the keyboard, so E/J/T/M cannot start a ghost world
+  assert.match(game, /if \(panelMode === 'title'\) return;/);
+  // the world pauses while any panel is open
+  assert.match(game, /if \(panelMode !== 'none'\) \{ keys\.clear\(\); renderer\.render\(scene, camera\); return; \}/);
+  // progress is flushed when the tab goes away, not only every 45 seconds
+  assert.match(game, /addEventListener\('pagehide', saveOnExit\)/);
+  assert.match(game, /addEventListener\('beforeunload', saveOnExit\)/);
+  // the recovery copy is not refreshed by every autosave
+  assert.match(game, /const BACKUP_AGE/);
+  // Recover swaps live and backup instead of destroying the newer save
+  assert.match(game, /localStorage\.setItem\(slotKey\(i\) \+ ':backup', live\)/);
+  // an import is given a slot of its own before play starts
+  assert.match(game, /All ' \+ SLOTS \+ ' slots are full/);
+  // repeat settlement jobs pay less each time, so no buy-and-deliver loop profits
+  assert.match(game, /const jobReward = \(job, times\)/);
+  assert.match(game, /Math\.pow\(0\.55, times\)/);
+  // only hostile creatures pay a bounty
+  assert.match(game, /if \(mob\.spec\.hostile\) \{/);
+  // buying a spare tool must not repair the worn one
+  assert.match(game, /BLOCKS\[offer\.id\]\.uses && !tools\.has\(offer\.id\)/);
+  // settlers never spawn below the waterline
+  assert.match(game, /Math\.max\(heightAt\(x, z\) \+ 1, SEA_LEVEL \+ 1\)/);
+  // settler meshes are disposed, not just removed
+  assert.match(game, /function disposeSettler/);
+  // the settlement tier ladder and its shop gating
+  assert.match(game, /const SETTLEMENT_TIERS = \[/);
+  assert.match(game, /function settlementTier\(\)/);
+  assert.match(game, /\(offer\.tier \|\| 0\) > settlementTier\(\)/);
+  assert.match(game, /id="rpgSettlement"/);
 });
