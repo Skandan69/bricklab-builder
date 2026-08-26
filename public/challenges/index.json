@@ -1,0 +1,54 @@
+{
+  "targets": [
+    {
+      "id": "gateposts",
+      "name": "The Gateposts",
+      "brief": "Two matching posts either side of a gap, capped in yellow.",
+      "difficulty": 1,
+      "seconds": 180,
+      "pieces": 12,
+      "file": "/challenges/gateposts.json",
+      "image": "/challenges/gateposts.webp"
+    },
+    {
+      "id": "hut",
+      "name": "Founder's Hut",
+      "brief": "A four-wall hut with a doorway, one window, and a red roof that steps in twice.",
+      "difficulty": 2,
+      "seconds": 300,
+      "pieces": 25,
+      "file": "/challenges/hut.json",
+      "image": "/challenges/hut.webp"
+    },
+    {
+      "id": "tower",
+      "name": "Signal Tower",
+      "brief": "A stepped tower that narrows as it rises, with a lamp at the top.",
+      "difficulty": 3,
+      "seconds": 300,
+      "pieces": 53,
+      "file": "/challenges/tower.json",
+      "image": "/challenges/tower.webp"
+    },
+    {
+      "id": "bridge",
+      "name": "Stone Span",
+      "brief": "Two grey piers stepped in white, carrying a deck with brown railings and a lamp at each end.",
+      "difficulty": 4,
+      "seconds": 420,
+      "pieces": 26,
+      "file": "/challenges/bridge.json",
+      "image": "/challenges/bridge.webp"
+    },
+    {
+      "id": "station",
+      "name": "Halt & Canopy",
+      "brief": "A platform under a canopy on four columns, with a bench and a lamp.",
+      "difficulty": 5,
+      "seconds": 480,
+      "pieces": 32,
+      "file": "/challenges/station.json",
+      "image": "/challenges/station.webp"
+    }
+  ]
+}
