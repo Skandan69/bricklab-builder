@@ -421,7 +421,18 @@ body:has(.builder-shell) {
   transition: background var(--bl-t), border-color var(--bl-t);
 }
 .world-card-copy button:hover { background: rgba(255,255,255,.1); border-color: var(--bl-line-hi); }
-.world-card-copy .preview-button { color: var(--bl-text-3); }
+/* globals.css gives this a cream fill, which on the dark ground rendered as
+   near-white text on near-white. Restate the whole button, not just its ink. */
+.world-card-copy .preview-button {
+  background: rgba(255, 255, 255, .04);
+  border: 1px dashed var(--bl-line-mid);
+  color: var(--bl-text-3);
+}
+.world-card-copy .preview-button:hover {
+  background: rgba(255, 255, 255, .08);
+  border-color: var(--bl-line-hi);
+  color: var(--bl-text-2);
+}
 
 .world-notice {
   background: var(--bl-surface-2);
@@ -587,3 +598,45 @@ kbd {
   .game-universe, .world-showcase, .mode-grid { padding-inline: 20px; padding-block: 56px; }
   .welcome-shell footer { padding: 28px 20px 48px; }
 }
+
+/* =========================================================================
+   Worlds that have not been built yet
+   -------------------------------------------------------------------------
+   These cards used to carry a photoreal render of a world the engine cannot
+   produce. A panel that says so is more honest and reads better in the grid
+   than a picture that sets an expectation nothing can meet.
+   ========================================================================= */
+.world-card-art-empty {
+  display: grid;
+  place-items: center;
+  min-height: 190px;
+  background:
+    repeating-linear-gradient(
+      -45deg,
+      rgba(255, 255, 255, .028) 0 12px,
+      transparent 12px 24px
+    ),
+    var(--bl-surface-2);
+  border-bottom: 1px solid var(--bl-line);
+}
+.world-card-art-empty::after { content: none; }
+/* the status pill and the number keep their corners; only the art changes */
+.world-card-art-empty { position: relative; }
+.world-card-art-empty .world-status { position: absolute; top: 12px; left: 12px; }
+.world-card-art-empty .world-number {
+  position: absolute; bottom: 12px; right: 12px;
+  border: 0; background: transparent; backdrop-filter: none;
+  font-family: var(--bl-display); font-size: 24px; color: rgba(255,255,255,.1);
+}
+.world-card-soon {
+  font-family: var(--bl-display);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+  color: var(--bl-text-3);
+  border: 1px dashed var(--bl-line-mid);
+  border-radius: var(--bl-r-xs);
+  padding: 9px 16px;
+}
+.world-card:hover .world-card-art-empty { background-color: var(--bl-surface-3); }
