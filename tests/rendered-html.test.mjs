@@ -425,3 +425,59 @@ test("Frontier night raids give the fourth verb something to defend", async () =
   // and the box copy is now true rather than aspirational
   assert.match(game, /Light the settlement before dusk, or raiders break what you built\./);
 });
+
+test("every game can send player feedback through one shared widget", async () => {
+  const widget = await readFile(new URL("../public/feedback.js", import.meta.url), "utf8");
+
+  // one implementation, not one per game
+  assert.match(widget, /'\/frontier\.html': 'frontier'/);
+  assert.match(widget, /'\/worldforge\.html': 'worldforge'/);
+  assert.match(widget, /'\/infinite-plots\.html': 'plots'/);
+  // context is read when the note is sent, so load order does not matter
+  assert.match(widget, /function gameContext\(\)/);
+  assert.match(widget, /played: Math\.round\(\(Date\.now\(\) - started\) \/ 1000\)/);
+  // typing in the box must not drive the player
+  assert.match(widget, /\['keydown', 'keyup', 'keypress'\]\.forEach/);
+  assert.match(widget, /event\.stopPropagation\(\)/);
+  // and it releases the mouse so the panel is usable
+  assert.match(widget, /if \(document\.exitPointerLock\) document\.exitPointerLock\(\)/);
+
+  // every game loads it, and the Next app does too
+  for (const file of ["frontier.html", "worldforge.html", "infinite-plots.html"]) {
+    const game = await readFile(new URL(`../public/${file}`, import.meta.url), "utf8");
+    assert.match(game, /<script src="\/feedback\.js" defer><\/script>/, `${file} loads the widget`);
+  }
+  const layout = await readFile(new URL("../app/layout.tsx", import.meta.url), "utf8");
+  assert.match(layout, /<script src="\/feedback\.js" defer \/>/);
+
+  // the two voxel games report where the player had got to
+  const frontier = await readFile(new URL("../public/frontier.html", import.meta.url), "utf8");
+  assert.match(frontier, /window\.BRICKLAB_FEEDBACK=\{context:/);
+  const world = await readFile(new URL("../public/worldforge.html", import.meta.url), "utf8");
+  assert.match(world, /window\.BRICKLAB_FEEDBACK=\{context:/);
+});
+
+test("the feedback route validates before it touches storage", async () => {
+  const route = await readFile(new URL("../app/api/feedback/route.ts", import.meta.url), "utf8");
+
+  // only the four real games, and hard caps on a public write endpoint
+  assert.match(route, /const GAMES = \["cities", "frontier", "worldforge", "plots"\]/);
+  assert.match(route, /const MAX_MESSAGE = 1200/);
+  assert.match(route, /const MAX_CONTEXT = 2000/);
+  // a bad note is rejected before the database is reached for
+  const validateAt = route.indexOf("Say something, or leave a rating");
+  const storageAt = route.indexOf("const db = await getAnyDb();", route.indexOf("export async function POST"));
+  assert.ok(validateAt > 0 && storageAt > validateAt, "validation must precede storage");
+  // reading it back is gated on a secret, and denied outright when unset
+  assert.match(route, /const expected = process\.env\.FEEDBACK_KEY;/);
+  assert.match(route, /if \(!expected\) return fail\("Set FEEDBACK_KEY to read feedback", 503\)/);
+  assert.match(route, /if \(key !== expected\) return fail\("Not found", 404\)/);
+
+  // the table it writes to exists in the schema and in a migration
+  const schema = await readFile(new URL("../db/schema.ts", import.meta.url), "utf8");
+  assert.match(schema, /export const feedback = sqliteTable\(/);
+  const migration = await readFile(new URL("../drizzle/0002_feedback.sql", import.meta.url), "utf8");
+  assert.match(migration, /CREATE TABLE `feedback`/);
+  const journal = await readFile(new URL("../drizzle/meta/_journal.json", import.meta.url), "utf8");
+  assert.match(journal, /0002_feedback/);
+});
