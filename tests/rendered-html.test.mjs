@@ -540,3 +540,33 @@ test("a public town can be taken down", async () => {
   assert.match(migration, /ALTER TABLE `towns` ADD `ip_hash` text/);
   assert.match(migration, /ALTER TABLE `feedback` ADD `ip_hash` text/);
 });
+
+test("every challenge target fits the difficulty scale the page draws", async () => {
+  /* A target harder than the scale made the page call "●".repeat(-1), which
+     throws and blanks the whole homepage. Cheap to assert, expensive to miss. */
+  const page = await readFile(new URL("../app/page.tsx", import.meta.url), "utf8");
+  const max = Number((page.match(/const MAX_DIFFICULTY = (\d+)/) || [])[1]);
+  assert.ok(Number.isInteger(max) && max > 0, "page.tsx must declare MAX_DIFFICULTY");
+
+  const index = JSON.parse(await readFile(new URL("../public/challenges/index.json", import.meta.url), "utf8"));
+  assert.ok(index.targets.length > 0, "there must be challenge targets");
+  for (const target of index.targets) {
+    assert.ok(
+      Number.isInteger(target.difficulty) && target.difficulty >= 1 && target.difficulty <= max,
+      `${target.id} has difficulty ${target.difficulty}, outside 1..${max}`,
+    );
+    assert.ok(target.seconds > 0, `${target.id} needs a time limit`);
+    assert.match(target.image, /^\/challenges\/.+\.webp$/);
+  }
+});
+
+test("no challenge target uses a piece the scorer cannot measure", async () => {
+  const dims = JSON.parse(await readFile(new URL("../db/piece-dims.json", import.meta.url), "utf8"));
+  const index = JSON.parse(await readFile(new URL("../public/challenges/index.json", import.meta.url), "utf8"));
+  for (const target of index.targets) {
+    const world = JSON.parse(await readFile(new URL(`../public${target.file}`, import.meta.url), "utf8"));
+    for (const brick of world.bricks) {
+      assert.ok(dims[brick.typeId], `${target.id} uses ${brick.typeId}, which is not in the piece table`);
+    }
+  }
+});
