@@ -1,4 +1,4 @@
-import { and, count, desc, eq, inArray } from "drizzle-orm";
+import { and, count, desc, eq, inArray, sql } from "drizzle-orm";
 import { getAnyDb, storageUnavailable } from "../../../db/client";
 import { townLikes, towns } from "../../../db/schema";
 import {
@@ -173,23 +173,36 @@ export async function POST(request: Request) {
   }
 
   const id = newTownId();
-  /* Naming ip_hash in the insert fails outright until 0003_limits has run, so
-     only send the column once the schema is known to have it. Saving a town
-     matters more than counting it. */
-  const schemaReady = await limitsSchemaReady(db);
-  await db.insert(towns).values({
+  const visibility = cleanVisibility(body.visibility, "private");
+  const record = {
     id,
     ownerId: viewer.ownerId,
-    ...(schemaReady ? { ipHash: address } : {}),
     ownerName: viewer.ownerName,
     name,
     data: checked.text,
     brickCount: checked.bricks,
     thumb,
-    visibility: cleanVisibility(body.visibility, "private"),
+    visibility,
     createdAt: now,
     updatedAt: now,
-  });
+  };
+
+  /* Drizzle names every column of the table in an INSERT, whether or not the
+     values object mentions it — so on a database that has not run 0003_limits
+     the statement asks for ip_hash and the whole save fails. Dropping the key
+     is not enough; the pre-0003 column list has to be spelled out. Saving a
+     player's town matters more than counting it against a rate limit. */
+  if (await limitsSchemaReady(db)) {
+    await db.insert(towns).values({ ...record, ipHash: address });
+  } else {
+    await db.run(sql`
+      insert into towns
+        (id, owner_id, owner_name, name, data, brick_count, thumb, visibility, created_at, updated_at)
+      values
+        (${id}, ${viewer.ownerId}, ${viewer.ownerName}, ${name}, ${checked.text},
+         ${checked.bricks}, ${thumb}, ${visibility}, ${now}, ${now})
+    `);
+  }
 
   return Response.json({ id, name, brickCount: checked.bricks, updated: false }, { status: 201 });
 }
