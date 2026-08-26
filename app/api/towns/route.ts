@@ -14,6 +14,7 @@ import {
   isVoterId,
   newTownId,
 } from "./shared";
+import { HOUR, LIMITS, ipHash, since, tooMany, townsFromAddress, townsOwnedBy } from "../limits";
 
 export const dynamic = "force-dynamic";
 
@@ -139,10 +140,22 @@ export async function POST(request: Request) {
     return Response.json({ id: body.id, name, brickCount: checked.bricks, updated: true });
   }
 
+  /* A new town, so this is where the storage actually grows. `ensureViewer`
+     hands a cookie to anyone who asks, which is the point for a player and a
+     hole for a script — so count by address as well as by owner. */
+  const address = await ipHash(request);
+  if (address && (await townsFromAddress(db, address, since(HOUR))) >= LIMITS.townsPerHourPerAddress) {
+    return tooMany("new towns");
+  }
+  if ((await townsOwnedBy(db, viewer.ownerId)) >= LIMITS.townsPerOwner) {
+    return fail(`You can keep ${LIMITS.townsPerOwner} towns. Delete one to save another.`, 409);
+  }
+
   const id = newTownId();
   await db.insert(towns).values({
     id,
     ownerId: viewer.ownerId,
+    ipHash: address,
     ownerName: viewer.ownerName,
     name,
     data: checked.text,
