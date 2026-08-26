@@ -6,7 +6,7 @@ BrickLab Builder is an original browser-based creative construction game. It inc
 
 - `/` — Build Your Dream Cities landing page, guided build, free build, and showcase worlds
 - `/worldforge.html` — BrickLab Frontier open-world building mode
-- `/frontier.html` — Deep World: the chunked voxel engine (endless terrain, mining, crafting, survival)
+- `/frontier.html` — BrickLab Frontier: the settlement RPG on the chunked voxel engine (mining, crafting, quests, settlers, trade)
 - `/infinite-plots.html` — claimable 48 × 48 plots with Open World structure import
 - `/brickforge.html` — the 3D construction engine used by the city builder
 
@@ -90,6 +90,18 @@ cache or a different browser, and can be shared by link or listed publicly.
 
 Set it up with `.env.example` and `npm run db:migrate`. See
 `docs/saved-towns.md` for the full route reference.
+
+## Settlement tiers
+
+The Frontier settlement grows out of what you build and who you help, not out of
+a level number. `SETTLEMENT_TIERS` in `public/frontier.html` reads two counters —
+blocks placed and settlement jobs delivered — and moves the settlement from Camp
+to Hamlet to Village to Town. Each tier unlocks more of Arun's stock, which is
+what gives frontier marks a purpose beyond the first stone pick.
+
+Repeat settlement jobs pay `job.coins * 0.55^times`, floored at 3 marks. That is
+deliberate: without it, any shop item that a job also consumes becomes an
+infinite-money loop, since buying is cheaper than gathering.
 
 ## Browser saves
 
