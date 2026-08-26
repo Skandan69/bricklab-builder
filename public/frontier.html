@@ -147,6 +147,14 @@
     .title-copy h1{font-size:48px!important;letter-spacing:-2.5px}.title-art{height:300px;border-radius:20px}.title-lower{margin-top:28px}
     .title-card #slots{grid-template-columns:1fr;overflow:visible}.title-card .world-save-card{min-height:0}.section-heading{align-items:flex-start;flex-direction:column}
     .title-foot{flex-direction:column}.world-picker,.quick-guide{padding:16px}}
+    .title-art-shot{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;
+    /* the container is nearly square and the shot is wide, so bias the crop
+       toward the ground rather than filling half the card with sky */
+    object-position:50% 76%;display:block}
+  .title-art{position:relative;overflow:hidden}
+  .title-art::after{content:'';position:absolute;inset:0;pointer-events:none;
+    background:linear-gradient(180deg,rgba(8,14,22,0) 42%,rgba(8,14,22,.72) 100%)}
+  .title-art-label{z-index:2}
 </style>
 </head>
 <body>
@@ -1062,9 +1070,10 @@ function showTitle() {
           <p class="title-lede">Gather scarce materials, build a settlement with Mira, Arun and Leela, complete story quests and defend everything you create after nightfall.</p>
           <div class="title-pills"><span>Finite wilderness</span><span>Story quests</span><span>Settler jobs</span><span>Creatures & caves</span><span>Night raids</span><span>Creative flight</span></div>
         </div>
-        <div class="title-art" role="img" aria-label="A colourful block-built frontier with hills and settlement towers">
-          <div class="frontier-sun"></div><div class="voxel-hill hill-one"></div><div class="voxel-hill hill-two"></div>
-          <div class="voxel-tower tower-one"></div><div class="voxel-tower tower-two"></div><div class="voxel-tower tower-three"></div>
+        <!-- Captured in the game itself rather than drawn in CSS, so the picture
+             on the door is the thing behind it. -->
+        <div class="title-art">
+          <img class="title-art-shot" src="/shots/frontier-valley.webp" alt="The frontier seen from above: forest, a river beach and snow-capped peaks" loading="eager" width="1300" height="864">
           <div class="title-art-label"><small>Your next chapter</small><strong>Founder's Valley</strong><span>Mine by day. Light the settlement before dusk.</span></div>
         </div>
       </section>
@@ -2186,6 +2195,7 @@ window.frontier = {
 })();
 </script>
 <script>window.BRICKLAB_FEEDBACK={context:()=>{try{const r=window.frontier.rpg();return{level:r.level,marks:r.coins,placed:r.placed,quest:r.quest?r.quest.title:'chapter complete',settlement:window.frontier.settlementTier?window.frontier.settlementTier():null,raidNights:window.frontier.raid?window.frontier.raid.nights:0};}catch(e){return{stage:'title screen'};}}};</script>
+<script src="/game-nav.js" defer></script>
 <script src="/feedback.js" defer></script>
 </body>
 </html>
