@@ -2,6 +2,22 @@ import { desc, eq } from "drizzle-orm";
 import { getAnyDb } from "../../../../db/client";
 import { townLikes, towns } from "../../../../db/schema";
 
+/* Named columns, not `.select()` — see the note in ../route.ts: a bare select
+   expands to the whole schema and breaks against a database that has not run
+   the latest migration yet. */
+const TOWN_COLUMNS = {
+  id: towns.id,
+  ownerId: towns.ownerId,
+  ownerName: towns.ownerName,
+  name: towns.name,
+  data: towns.data,
+  brickCount: towns.brickCount,
+  thumb: towns.thumb,
+  visibility: towns.visibility,
+  createdAt: towns.createdAt,
+  updatedAt: towns.updatedAt,
+};
+
 export const dynamic = "force-dynamic";
 
 /**
@@ -77,7 +93,7 @@ export async function POST(request: Request) {
   const db = await getAnyDb();
   if (!db) return fail("Moderation needs a database — set TURSO_DATABASE_URL", 503);
 
-  const [existing] = await db.select().from(towns).where(eq(towns.id, id)).limit(1);
+  const [existing] = await db.select(TOWN_COLUMNS).from(towns).where(eq(towns.id, id)).limit(1);
   if (!existing) return fail("Town not found", 404);
 
   if (action === "unlist") {
