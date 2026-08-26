@@ -89,6 +89,10 @@ async function decorate(
 export async function GET(request: Request) {
   const url = new URL(request.url);
   const scope = url.searchParams.get("scope") === "mine" ? "mine" : "public";
+  /* "all time" means most-liked, not most-recent. Ordering by a correlated
+     count keeps paging honest — sorting a page in JavaScript would only ever
+     sort the twelve rows that happened to come back. */
+  const byLikes = url.searchParams.get("sort") === "likes";
   const voterIdParam = url.searchParams.get("voterId");
   const voterId = isVoterId(voterIdParam) ? voterIdParam : null;
   const limit = Math.min(LIST_LIMIT, Math.max(1, Number(url.searchParams.get("limit")) || 12));
@@ -103,13 +107,18 @@ export async function GET(request: Request) {
     .select(TOWN_COLUMNS)
     .from(towns)
     .where(scope === "mine" ? eq(towns.ownerId, viewer!.ownerId) : eq(towns.visibility, "public"))
-    .orderBy(desc(towns.updatedAt))
+    .orderBy(
+      ...(byLikes
+        ? [desc(sql`(select count(*) from town_likes where town_likes.town_id = ${towns.id})`), desc(towns.updatedAt)]
+        : [desc(towns.updatedAt)]),
+    )
     .limit(limit)
     .offset(offset);
 
   return Response.json({
     items: await decorate(db, rows, voterId, viewer?.ownerId ?? null),
     signedIn: !!viewer,
+    sort: byLikes ? "likes" : "recent",
   });
 }
 
