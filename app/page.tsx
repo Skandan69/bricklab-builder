@@ -206,6 +206,7 @@ export default function Home() {
         <div className="welcome-links" aria-label="Game modes">
           <a href="#dream-cities">Dream Cities</a>
           <a href="/frontier.html">Frontier RPG</a>
+          <a href="/worldforge.html">Open World</a>
           <a href="/infinite-plots.html">Infinite Plots</a>
         </div>
         <span className="beta-pill">Early Builder Access · All pieces unlocked</span>
@@ -219,6 +220,7 @@ export default function Home() {
             <a className="cta primary-cta" href="#game-universe">Choose your game <span>→</span></a>
             <button className="cta secondary-cta" onClick={() => begin("challenge")}>Start a city challenge</button>
             <a className="cta world-cta" href="/frontier.html">Play Frontier RPG</a>
+            <a className="cta world-cta" href="/worldforge.html">Enter the Open World</a>
           </div>
           <div className="trust-row"><span><b>01</b> Pick a piece</span><span><b>02</b> Build anything</span><span><b>03</b> Press play</span></div>
         </div>
@@ -233,7 +235,7 @@ export default function Home() {
       </section>
       <section className="game-universe" id="game-universe" aria-labelledby="game-universe-title">
         <div className="universe-heading">
-          <p className="eyebrow"><span/> Three connected ways to play</p>
+          <p className="eyebrow"><span/> Four connected ways to play</p>
           <h2 id="game-universe-title">Build. Adventure. Compete.</h2>
           <p>Each BrickLab game has a clear purpose. Your creations can eventually move between them without turning every experience into the same game.</p>
         </div>
@@ -262,8 +264,16 @@ export default function Home() {
             <ul><li>Plot claiming and restricted building live</li><li>Open World build import live</li><li>Friends access, seasons and judging next</li></ul>
             <div className="universe-actions"><a className="primary-link" href="/infinite-plots.html">Claim a plot →</a></div>
           </article>
+          <article className="universe-card openworld-card">
+            <div className="universe-topline"><span>AI builders &amp; expeditions</span><b>Playable</b></div>
+            <strong className="universe-number">04</strong>
+            <h3>Open World</h3>
+            <p>Occupy a plot and a named AI builder joins you and raises the whole structure while you watch. No combat, no hunger — the frontier is finite, and you buy more of it.</p>
+            <ul><li>Twelve claimable plots with AI builders live</li><li>Timed Frontier Gate expeditions live</li><li>Export any build straight into Infinite Plots</li></ul>
+            <div className="universe-actions"><a className="primary-link" href="/worldforge.html">Enter the Open World →</a></div>
+          </article>
         </div>
-        <p className="universe-roadmap"><b>One BrickLab identity, three game loops.</b> Accounts, teams, likes and seasonal competitions will connect them in a later online release.</p>
+        <p className="universe-roadmap"><b>One BrickLab identity, four game loops.</b> Accounts, teams, likes and seasonal competitions will connect them in a later online release.</p>
       </section>
       <section className="world-showcase" aria-labelledby="world-gallery-title">
         <div className="world-showcase-head"><div><p className="eyebrow"><span/> Official showcase worlds</p><h2 id="world-gallery-title">Choose a world. Then build your own.</h2></div><p>Explore working cities today and preview the heritage worlds joining BrickLab next. Every world is designed to become an explorable, piece-by-piece build.</p></div>
