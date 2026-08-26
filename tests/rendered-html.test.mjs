@@ -80,7 +80,9 @@ test("landing page presents the visual dream-city gallery", async () => {
   const page = await readFile(new URL("../app/page.tsx", import.meta.url), "utf8");
   assert.match(page, /Build your dream/);
   assert.match(page, /hero-city-visual/);
-  assert.match(page, /Walk · Ride · Build · Play/);
+  // the hero chip now credits the capture rather than listing the verbs
+  assert.match(page, /Captured in the live builder/);
+  assert.match(page, /shots\/cities-hero\.webp/);
   assert.match(page, /Metro City 1/);
   assert.match(page, /Metro City 2/);
   assert.match(page, /Indian Heritage City/);
