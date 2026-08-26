@@ -764,3 +764,38 @@ kbd {
 @media (max-width: 900px) {
   .challenge-picker { padding: 48px 20px; }
 }
+
+/* --- name and leaderboard, inside the challenge panel ------------------ */
+.copy-name { display: grid; gap: 5px; }
+.copy-name span { font-size: 10.5px; letter-spacing: .11em; text-transform: uppercase; color: var(--bl-text-3); }
+.copy-name input {
+  padding: 9px 11px;
+  border-radius: var(--bl-r-xs);
+  border: 1px solid var(--bl-line-mid);
+  background: rgba(255,255,255,.05);
+  color: var(--bl-text);
+  font: 500 13px/1 var(--bl-text-font);
+}
+.copy-name input:focus-visible { outline: 2px solid var(--bl-blue); outline-offset: 2px; }
+
+.copy-board {
+  display: grid; gap: 8px; padding: 13px;
+  border: 1px solid var(--bl-line-mid); border-radius: var(--bl-r-s);
+  background: rgba(255,255,255,.03);
+}
+.copy-board h3 {
+  margin: 0; font-family: var(--bl-display); font-size: 11px; font-weight: 600;
+  letter-spacing: .13em; text-transform: uppercase; color: var(--bl-text-3);
+}
+.copy-board ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.copy-board li {
+  display: grid; grid-template-columns: 18px 1fr auto auto; align-items: baseline; gap: 8px;
+  padding: 5px 7px; border-radius: 6px; font-size: 12.5px; color: var(--bl-text-2);
+}
+.copy-board li.you { background: rgba(255,95,66,.13); color: var(--bl-text); }
+.copy-board li b { font-family: var(--bl-display); color: var(--bl-text-3); font-variant-numeric: tabular-nums; }
+.copy-board li.you b { color: var(--bl-brand); }
+.copy-board li span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.copy-board li em { font-style: normal; font-weight: 600; color: var(--bl-text); font-variant-numeric: tabular-nums; }
+.copy-board li small { color: var(--bl-text-3); font-variant-numeric: tabular-nums; }
+.copy-board > small { font-size: 11px; line-height: 1.45; color: var(--bl-text-3); }

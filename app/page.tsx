@@ -18,6 +18,8 @@ type ChallengeResult = {
   targetCells: number; attemptCells: number; shared: number; missing: number;
   extra: number; rotation: number;
 };
+type BoardRow = { rank: number; name: string; score: number; seconds: number | null; you: boolean };
+type Board = { items: BoardRow[]; you: { score: number; seconds: number | null; rank: number } | null; storage: boolean };
 type Scorer = {
   compare: (target: unknown[], attempt: unknown[], types: Record<string, PieceType>) => ChallengeResult;
 };
@@ -72,6 +74,9 @@ export default function Home() {
   const [result, setResult] = useState<ChallengeResult | null>(null);
   const [best, setBest] = useState<Record<string, number>>({});
   const [scoreNote, setScoreNote] = useState("");
+  const [board, setBoard] = useState<Board | null>(null);
+  const [playerName, setPlayerName] = useState("");
+  const [submitting, setSubmitting] = useState(false);
   const [ready, setReady] = useState(false);
   const [brickCount, setBrickCount] = useState(0);
   const [pieceTypes, setPieceTypes] = useState<string[]>([]);
@@ -133,6 +138,7 @@ export default function Home() {
     try {
       const saved = window.localStorage.getItem("bricklab-challenge-best");
       if (saved) setBest(JSON.parse(saved) as Record<string, number>);
+      setPlayerName(window.localStorage.getItem("bricklab-player-name") || "");
     } catch { /* a cleared or blocked store just means no personal bests yet */ }
   }, []);
 
@@ -159,6 +165,8 @@ export default function Home() {
     setTarget(choice);
     setSecondsLeft(choice.seconds);
     setPickerOpen(false);
+    setBoard(null);
+    loadBoard(choice.id);
     begin("copy");
   };
 
@@ -170,19 +178,50 @@ export default function Home() {
     return table;
   };
 
-  const scoreAttempt = () => {
+  const loadBoard = async (targetId: string) => {
+    try {
+      const r = await fetch(`/api/challenges/scores?target=${encodeURIComponent(targetId)}`, { cache: "no-store" });
+      if (r.ok) setBoard((await r.json()) as Board);
+    } catch { /* the board is a bonus; a build still scores without it */ }
+  };
+
+  const scoreAttempt = async () => {
     const forge = api();
     const scorer = (window as unknown as { BrickLabScore?: Scorer }).BrickLabScore;
-    if (!forge || !scorer) { setScoreNote("The scorer is still loading. Try again in a moment."); return; }
+    if (!forge || !scorer || !target) { setScoreNote("The scorer is still loading. Try again in a moment."); return; }
     const attempt = (forge.exportTown?.() as { bricks?: unknown[] } | undefined)?.bricks ?? [];
     if (!attempt.length) { setScoreNote("Nothing built yet — place some pieces first."); return; }
+
+    /* Score it here first so the number appears at once, then send the bricks
+       for the server to score again. The board only ever shows the server's
+       number — a score the page reports is a score anyone can type. */
     const outcome = scorer.compare(targetBricks, attempt, pieceTable());
     setResult(outcome);
-    if (target) {
-      const next = { ...best, [target.id]: Math.max(best[target.id] ?? 0, outcome.score) };
-      setBest(next);
-      try { window.localStorage.setItem("bricklab-challenge-best", JSON.stringify(next)); }
-      catch { /* nothing to do if the store is unavailable */ }
+    const next = { ...best, [target.id]: Math.max(best[target.id] ?? 0, outcome.score) };
+    setBest(next);
+    try { window.localStorage.setItem("bricklab-challenge-best", JSON.stringify(next)); } catch { /* ignore */ }
+
+    setSubmitting(true);
+    try {
+      const spent = target.seconds - Math.max(0, secondsLeft ?? 0);
+      const r = await fetch("/api/challenges/scores", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ targetId: target.id, bricks: attempt, seconds: spent, name: playerName }),
+      });
+      if (r.ok) {
+        const posted = (await r.json()) as { verified: ChallengeResult; rank: number; name: string };
+        setResult(posted.verified);
+        setScoreNote(`Ranked ${posted.rank} on this challenge.`);
+        await loadBoard(target.id);
+      } else {
+        const problem = (await r.json().catch(() => ({}))) as { error?: string };
+        setScoreNote(problem.error || "Scored on this device — the board could not be reached.");
+      }
+    } catch {
+      setScoreNote("Scored on this device — the board could not be reached.");
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -537,8 +576,39 @@ export default function Home() {
 
           {scoreNote && <div className="unlock-note">{scoreNote}</div>}
 
+          <label className="copy-name">
+            <span>Name on the board</span>
+            <input
+              type="text" maxLength={24} value={playerName} placeholder="Builder"
+              onChange={(e) => {
+                setPlayerName(e.target.value);
+                try { window.localStorage.setItem("bricklab-player-name", e.target.value); } catch { /* ignore */ }
+              }}
+            />
+          </label>
+
+          {board && board.items.length > 0 && (
+            <div className="copy-board">
+              <h3>Leaderboard</h3>
+              <ol>
+                {board.items.slice(0, 8).map((row) => (
+                  <li key={`${row.rank}-${row.name}`} className={row.you ? "you" : ""}>
+                    <b>{row.rank}</b>
+                    <span>{row.name}{row.you ? " · you" : ""}</span>
+                    <em>{row.score}%</em>
+                    {row.seconds !== null && <small>{Math.floor(row.seconds / 60)}:{String(row.seconds % 60).padStart(2, "0")}</small>}
+                  </li>
+                ))}
+              </ol>
+              {board.you && board.you.rank > 8 && (
+                <p className="copy-detail">You are {board.you.rank}th with {board.you.score}%.</p>
+              )}
+              <small>Every score here was recalculated on the server from the pieces you placed.</small>
+            </div>
+          )}
+
           <div className="view-buttons town-actions">
-            {!result && <button className="copy-primary" onClick={scoreAttempt}>Score my build</button>}
+            {!result && <button className="copy-primary" onClick={scoreAttempt} disabled={submitting}>{submitting ? "Scoring…" : "Score my build"}</button>}
             {result && <button className="copy-primary" onClick={retryTarget}>Try again</button>}
             <button onClick={shareTarget}>Challenge a friend</button>
             <button onClick={() => { setTarget(null); setResult(null); setStarted(false); setPickerOpen(true); }}>Pick another</button>
