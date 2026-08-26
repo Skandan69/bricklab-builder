@@ -91,6 +91,35 @@ cache or a different browser, and can be shared by link or listed publicly.
 Set it up with `.env.example` and `npm run db:migrate`. See
 `docs/saved-towns.md` for the full route reference.
 
+## Player feedback
+
+Four playable games and, so far, a sample size of zero. `public/feedback.js` is
+one widget loaded by all of them — the three standalone games with a single
+`<script src="/feedback.js" defer>`, and the Next app from `app/layout.tsx` —
+so a fix lands once rather than four times.
+
+It works out which game it belongs to from the path, so nothing has to be
+configured. A game that wants to say where the player had got to sets
+
+```js
+window.BRICKLAB_FEEDBACK = { context: () => ({ level: 4, settlement: 'Village' }) };
+```
+
+and the context is read when the note is sent, not when the script loads.
+Frontier reports level, marks, blocks placed, the current quest, the settlement
+tier and how many raid nights were survived; Open World reports its stage,
+territory, coins and claimed plots. Nobody has to remember any of it.
+
+Typing in the box does not drive the player: the widget stops `keydown`,
+`keyup` and `keypress` from reaching the games' document-level handlers, and
+releases pointer lock when it opens.
+
+`POST /api/feedback` is public, so it validates before it reaches for storage
+and caps hard — four known game ids, 1,200 characters of note, 2,000 of
+context. Reading it back is `GET /api/feedback?key=…`, gated on `FEEDBACK_KEY`;
+with that unset nobody can read what players wrote, including you. That is a
+shared secret standing in for accounts, which is the next thing to build.
+
 ## Night raids
 
 Creatures used to be a hazard to the player and nothing else: you could die, but
