@@ -59,7 +59,11 @@ let addressLimitsReady: boolean | null = null;
 export async function limitsSchemaReady(db: BrickLabDb): Promise<boolean> {
   if (addressLimitsReady !== null) return addressLimitsReady;
   try {
-    await db.select({ value: count() }).from(feedback).limit(1);
+    /* Probe the exact column the caller is about to write. An earlier version
+       probed the feedback *table* instead, which exists from 0002 while
+       towns.ip_hash only arrives in 0003 — so it reported ready, the insert
+       named a column that was not there, and saving a town 500-ed. */
+    await db.select({ value: towns.ipHash }).from(towns).limit(1);
     addressLimitsReady = true;
   } catch {
     addressLimitsReady = false;
