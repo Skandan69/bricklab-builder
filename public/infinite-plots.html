@@ -123,5 +123,6 @@ if(claimed){layStarterPad();player.x=centre(claimed.px);player.z=centre(claimed.
 updateCamera();updateGuides();updateHUD();if(new URLSearchParams(location.search).get('import')==='open-world')setTimeout(()=>{importOpenWorldBuild();history.replaceState(null,'','/infinite-plots.html')},250);requestAnimationFrame(frame);
 })();
 </script>
+<script src="/feedback.js" defer></script>
 </body>
 </html>
