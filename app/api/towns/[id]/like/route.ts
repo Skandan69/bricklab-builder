@@ -1,4 +1,4 @@
-import { and, count, eq } from "drizzle-orm";
+import { and, count, eq, sql } from "drizzle-orm";
 import { getAnyDb, storageUnavailable } from "../../../../../db/client";
 import { townLikes, towns } from "../../../../../db/schema";
 import { fail, isTownId, isVoterId } from "../../shared";
@@ -33,14 +33,42 @@ async function tally(townId: string, voterId: string | null) {
   return { count: total?.value ?? 0, liked };
 }
 
+const LIKE_COLUMNS = ["id", "town_id", "voter_id", "created_at"];
+
+/**
+ * Why the likes table is refusing.
+ *
+ * These migrations get run by hand in a SQL console that reports success for
+ * statements it never executed, so a half-built table is a real possibility —
+ * and a half-built table gives errors that look nothing like the cause. Say
+ * which columns are actually there and what to run.
+ */
+async function diagnose(): Promise<string> {
+  try {
+    const db = await getAnyDb();
+    if (!db) return "no database is configured";
+    const rows = await db.all<{ name: string }>(sql`select name from pragma_table_info('town_likes')`);
+    const found = rows.map((r) => r.name);
+    if (!found.length) return "the town_likes table does not exist — run the 0001_towns migration";
+    const missing = LIKE_COLUMNS.filter((c) => !found.includes(c));
+    if (missing.length) {
+      return `town_likes is missing ${missing.join(", ")} (it has ${found.join(", ")}). ` +
+        "It holds nothing yet, so the fix is: drop table town_likes; then re-run that statement from 0001_towns.";
+    }
+    return "the table looks right; the query failed for another reason";
+  } catch {
+    return "the table could not be inspected";
+  }
+}
+
 /** Never let a database problem leave the caller with an empty 500 body. */
 async function respond(townId: string, voterId: string | null) {
   try {
     const result = await tally(townId, voterId);
     if (!result) return storageUnavailable();
     return Response.json(result);
-  } catch (error) {
-    return fail(`Likes are unavailable: ${(error as Error)?.message ?? "unknown error"}`.slice(0, 200), 503);
+  } catch {
+    return fail(`Likes are unavailable — ${await diagnose()}`, 503);
   }
 }
 
@@ -83,8 +111,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     } else {
       await db.delete(townLikes).where(eq(townLikes.id, rowId));
     }
-  } catch (error) {
-    return fail(`Could not record that like: ${(error as Error)?.message ?? "unknown error"}`.slice(0, 200), 503);
+  } catch {
+    return fail(`Could not record that like — ${await diagnose()}`, 503);
   }
   return respond(id, body.voterId);
 }
