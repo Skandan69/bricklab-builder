@@ -169,7 +169,7 @@
 
 <div id="hint"></div>
 <div id="rpgHud" class="hidden" aria-live="polite">
-  <div class="rpgTop"><b id="rpgLevel">Builder level 1</b><span id="rpgCoins">0 frontier marks</span></div>
+  <div class="rpgTop"><b id="rpgLevel">Builder level 1</b><span id="rpgSettlement">Camp</span><span id="rpgCoins">0 frontier marks</span></div>
   <div class="xp"><i id="rpgXp" style="width:0%"></i></div>
   <small>Current quest</small>
   <strong id="rpgQuest">Gather timber</strong>
@@ -672,13 +672,35 @@ const RPG_QUESTS = [
   { id:'shelter', title:'Raise a shelter', detail:'Place 8 building blocks', kind:'place', target:8, xp:55, coins:10 },
   { id:'guardian', title:'Guard the frontier', detail:'Defeat one hostile creature', kind:'defeat', target:1, xp:75, coins:15 },
 ];
-const freshRpg = () => ({ level:1, xp:0, coins:0, questIndex:0, questProgress:0, completed:[], jobs:{} });
+const freshRpg = () => ({ level:1, xp:0, coins:0, placed:0, questIndex:0, questProgress:0, completed:[], jobs:{} });
+
+/* The settlement grows out of what you actually build and who you help, not
+   out of a level number. Each tier unlocks more of Arun's stock. */
+const SETTLEMENT_TIERS = [
+  { name:'Camp',    placed:0,   jobs:0, note:'A few tents and a promise.' },
+  { name:'Hamlet',  placed:25,  jobs:1, note:'Walls, a path, somewhere to sleep.' },
+  { name:'Village', placed:80,  jobs:3, note:'Workshops, storage, a lit trail.' },
+  { name:'Town',    placed:200, jobs:6, note:'A frontier town worth defending.' },
+];
+const jobsDone = () => Object.values(rpg.jobs || {}).reduce((n, v) => n + v, 0);
+function settlementTier() {
+  const placed = rpg.placed || 0, done = jobsDone();
+  let tier = 0;
+  SETTLEMENT_TIERS.forEach((t, i) => { if (placed >= t.placed && done >= t.jobs) tier = i; });
+  return tier;
+}
+/* Repeat a settlement job and it pays less each time, so no purchase-and-deliver
+   loop can ever out-earn actually gathering. */
+const jobReward = (job, times) => Math.max(3, Math.round(job.coins * Math.pow(0.55, times)));
+const jobXpFor  = (job, times) => Math.max(5, Math.round(job.xp    * Math.pow(0.55, times)));
 let rpg = freshRpg();
 const xpNeeded = (level) => 70 + (level - 1) * 45;
 function drawRpgHud() {
   const quest = RPG_QUESTS[rpg.questIndex];
   document.getElementById('rpgLevel').textContent = 'Builder level ' + rpg.level;
   document.getElementById('rpgCoins').textContent = rpg.coins + ' frontier marks';
+  const tier = SETTLEMENT_TIERS[settlementTier()];
+  document.getElementById('rpgSettlement').textContent = tier.name;
   document.getElementById('rpgXp').style.width = Math.min(100, rpg.xp / xpNeeded(rpg.level) * 100) + '%';
   document.getElementById('rpgQuest').textContent = quest ? quest.title : 'Frontier founder';
   document.getElementById('rpgQuestProgress').textContent = quest
@@ -714,11 +736,15 @@ const SETTLEMENT_JOBS = [
   { id:'leela-light', settler:'Leela', role:'Scout', title:'Light the safe trail', detail:'Deliver 4 torches for the night patrol.', need:[[23,4]], xp:45, coins:22 },
 ];
 const FRONTIER_SHOP = [
-  { id:32, n:2, price:6, name:'2 field rations' },
-  { id:23, n:4, price:8, name:'4 torches' },
-  { id:27, n:1, price:24, name:'Stone pick' },
-  { id:31, n:1, price:18, name:'Stone shovel' },
-  { id:28, n:1, price:48, name:'Iron pick' },
+  { id:32, n:2, price:6,  tier:0, name:'2 field rations' },
+  { id:23, n:4, price:26, tier:0, name:'4 torches' },
+  { id:27, n:1, price:24, tier:0, name:'Stone pick' },
+  { id:31, n:1, price:18, tier:0, name:'Stone shovel' },
+  { id:16, n:4, price:20, tier:1, name:'4 coal' },
+  { id:28, n:1, price:48, tier:1, name:'Iron pick' },
+  { id:18, n:2, price:34, tier:2, name:'2 iron' },
+  { id:25, n:8, price:26, tier:2, name:'8 bricks' },
+  { id:24, n:6, price:30, tier:3, name:'6 glass' },
 ];
 function jobReady(job) {
   return job.need.every(([id,n]) => (inventory.get(id) || 0) >= n);
@@ -726,21 +752,30 @@ function jobReady(job) {
 function completeSettlementJob(id) {
   const job = SETTLEMENT_JOBS.find((item) => item.id === id);
   if (!job || !jobReady(job)) return false;
+  const times = rpg.jobs[id] || 0;
+  const coins = jobReward(job, times);
+  const xp = jobXpFor(job, times);
   job.need.forEach(([block,n]) => take(block,n));
-  const count = (rpg.jobs[id] || 0) + 1;
-  rpg.jobs[id] = count;
-  rpg.coins += job.coins;
-  addXp(job.xp);
-  say(job.settler + ': job complete · +' + job.coins + ' marks');
+  rpg.jobs[id] = times + 1;
+  rpg.coins += coins;
+  addXp(xp);
+  say(job.settler + ': job complete · +' + coins + ' marks');
   openJournal();
   return true;
 }
 function buyFromTradingPost(index) {
   const offer = FRONTIER_SHOP[index];
-  if (!offer || rpg.coins < offer.price) { say('You need more frontier marks'); return false; }
+  if (!offer) return false;
+  if ((offer.tier || 0) > settlementTier()) {
+    say('Arun stocks that once the settlement reaches ' + SETTLEMENT_TIERS[offer.tier].name);
+    return false;
+  }
+  if (rpg.coins < offer.price) { say('You need more frontier marks'); return false; }
   rpg.coins -= offer.price;
   give(offer.id, offer.n);
-  if (BLOCKS[offer.id].uses) tools.set(offer.id, BLOCKS[offer.id].uses);
+  /* durability belongs to the tool you are holding — buying a spare must not
+     silently repair the worn one you already carry */
+  if (BLOCKS[offer.id].uses && !tools.has(offer.id)) tools.set(offer.id, BLOCKS[offer.id].uses);
   drawRpgHud();
   say('Purchased ' + offer.name);
   openTradingPost();
@@ -799,11 +834,20 @@ function openJournal() {
   const jobs = SETTLEMENT_JOBS.map((job) => {
     const ready = jobReady(job);
     const needs = job.need.map(([id,n]) => n + ' ' + BLOCKS[id].name.toLowerCase()).join(' + ');
-    return `<div class="settler-card"><b>${job.settler} · ${job.role}</b><strong>${job.title}</strong><small>${job.detail}</small><p>${needs} · completed ${rpg.jobs[job.id] || 0} times</p><button data-job="${job.id}" ${ready ? '' : 'disabled'}>${ready ? 'Deliver supplies' : 'Gather supplies'}</button></div>`;
+    const times = rpg.jobs[job.id] || 0;
+    const pays = jobReward(job, times) + ' marks · ' + jobXpFor(job, times) + ' XP';
+    return `<div class="settler-card"><b>${job.settler} · ${job.role}</b><strong>${job.title}</strong><small>${job.detail}</small><p>${needs} · pays ${pays} · done ${times}×</p><button data-job="${job.id}" ${ready ? '' : 'disabled'}>${ready ? 'Deliver supplies' : 'Gather supplies'}</button></div>`;
   }).join('');
   card.innerHTML = `
     <h1>Frontier journal</h1>
     <p class="muted">Builder level ${rpg.level} · ${rpg.xp}/${xpNeeded(rpg.level)} XP · ${rpg.coins} frontier marks</p>
+    ${(() => {
+      const t = settlementTier(), next = SETTLEMENT_TIERS[t + 1];
+      const progress = next
+        ? 'Next: ' + next.name + ' at ' + next.placed + ' blocks placed and ' + next.jobs + ' settlement jobs · you have ' + (rpg.placed || 0) + ' and ' + jobsDone()
+        : 'The settlement has reached its highest tier.';
+      return `<h2>Settlement</h2><div class="settler-card"><b>${SETTLEMENT_TIERS[t].name}</b><strong>${SETTLEMENT_TIERS[t].note}</strong><small>${progress}</small></div>`;
+    })()}
     <h2>Story chapter</h2>
     <div class="settler-card"><b>${quest ? 'Current quest' : 'Chapter complete'}</b><strong>${quest ? quest.title : 'Founder of the frontier'}</strong><small>${quest ? quest.detail + ' · ' + rpg.questProgress + '/' + quest.target : 'You completed the first settlement chapter.'}</small></div>
     <h2>Repeatable settlement jobs</h2><div class="settler-grid">${jobs}</div>
@@ -818,11 +862,17 @@ function openJournal() {
 function openTradingPost() {
   card.className = 'card';
   panelMode = 'trading';
-  const offers = FRONTIER_SHOP.map((offer,index) => `<div class="recipe"><span><b>${offer.name}</b><small>Permanent inventory item</small></span><button data-offer="${index}" ${rpg.coins >= offer.price ? '' : 'disabled'}><span class="shop-price">${offer.price} marks</span></button></div>`).join('');
+  const tier = settlementTier();
+  const offers = FRONTIER_SHOP.map((offer,index) => {
+    const locked = (offer.tier || 0) > tier;
+    const note = locked ? SETTLEMENT_TIERS[offer.tier].name + ' unlocks this' : 'Permanent inventory item';
+    const can = !locked && rpg.coins >= offer.price;
+    return `<div class="recipe"><span><b>${offer.name}</b><small>${note}</small></span><button data-offer="${index}" ${can ? '' : 'disabled'}><span class="shop-price">${locked ? 'Locked' : offer.price + ' marks'}</span></button></div>`;
+  }).join('');
   card.innerHTML = `
     <h1>Arun's trading post</h1>
     <p>“Frontier marks are earned by helping the settlement. Spend them on supplies you need; the land still expects you to gather the rest.”</p>
-    <p class="muted">Balance: ${rpg.coins} frontier marks</p>
+    <p class="muted">Balance: ${rpg.coins} frontier marks · settlement: ${SETTLEMENT_TIERS[tier].name}</p>
     <div class="grid">${offers}</div>
     <div class="row"><button class="primary" id="btnCloseTrade">Return to world</button><button id="btnJournalTrade">Quest journal</button></div>`;
   card.querySelectorAll('[data-offer]').forEach((button) => button.onclick = () => buyFromTradingPost(Number(button.dataset.offer)));
@@ -918,9 +968,14 @@ function completeBreak(x, y, z, id, toolId) {
 function wearTool(id) {
   const left = (tools.get(id) || 0) - 1;
   if (left <= 0) {
-    tools.delete(id);
     take(id, 1);
-    say(BLOCKS[id].name + ' wore out');
+    if ((inventory.get(id) || 0) > 0) {
+      tools.set(id, BLOCKS[id].uses);          // a spare takes over at full durability
+      say(BLOCKS[id].name + ' wore out · switching to a spare');
+    } else {
+      tools.delete(id);
+      say(BLOCKS[id].name + ' wore out');
+    }
   } else tools.set(id, left);
 }
 function eat(id) {
@@ -949,6 +1004,7 @@ function placeBlock() {
   if (!inTerritory(x, z)) { say('Outside your frontier'); return; }
   if (setBlock(x, y, z, id)) {
     take(id, 1);
+    rpg.placed = (rpg.placed || 0) + 1;
     questEvent('place', id, 1);
     addXp(1);
   }
@@ -1053,7 +1109,10 @@ function showTitle() {
     play.textContent = info ? 'Continue adventure' : 'Create world';
     play.onclick = () => {
       activeSlot = i;
-      if (info) { loadSlot(i); startGame(false); }
+      if (info) {
+        if (loadSlot(i)) startGame(false);
+        else alert('That save could not be read. Try Recover, or delete the slot and start again.');
+      }
       else {
         SEED = Math.floor(Math.random() * 1e9);
         territory = TERRITORY_START;
@@ -1082,7 +1141,21 @@ function showTitle() {
         const recover = document.createElement('button');
         recover.textContent = 'Recover';
         recover.title = 'Load the copy saved before the last save';
-        recover.onclick = () => { activeSlot = i; loadSlot(i, true); startGame(false); };
+        recover.onclick = () => {
+          /* swap live and backup rather than loading the backup on top: playing
+             on for 45s used to autosave the older state over the newer one and
+             the newer save was gone for good. A swap is reversible. */
+          const live = localStorage.getItem(slotKey(i));
+          const held = localStorage.getItem(slotKey(i) + ':backup');
+          if (!held) return;
+          try {
+            localStorage.setItem(slotKey(i), held);
+            if (live) localStorage.setItem(slotKey(i) + ':backup', live);
+          } catch (e) { /* storage full — load the copy without swapping */ }
+          activeSlot = i;
+          if (loadSlot(i)) { startGame(false); say('Recovered · click Recover again to swap back'); }
+          else alert('That recovery copy could not be read.');
+        };
         row.appendChild(recover);
       }
       const wipe = document.createElement('button');
@@ -1110,7 +1183,20 @@ function showTitle() {
   picker.onchange = () => {
     if (!picker.files[0]) return;
     importWorld(picker.files[0], (ok) => {
-      if (ok) startGame(false); else alert('That file could not be read.');
+      if (!ok) { alert('That file could not be read.'); return; }
+      /* An import used to inherit whatever activeSlot happened to be, then
+         autosave over it. Give it a home of its own before play starts. */
+      let target = -1;
+      for (let i = 0; i < SLOTS; i++) if (!slotSummary(i)) { target = i; break; }
+      if (target < 0) {
+        const answer = prompt('All ' + SLOTS + ' slots are full. Which slot should this world replace? (1-' + SLOTS + ')');
+        const choice = Number(answer);
+        if (!(choice >= 1 && choice <= SLOTS)) { alert('Import cancelled — nothing was changed.'); showTitle(); return; }
+        target = choice - 1;
+      }
+      activeSlot = target;
+      saveWorld(true);
+      startGame(false);
     });
   };
   importButton.onclick = () => picker.click();
@@ -1216,6 +1302,10 @@ addEventListener('wheel', (e) => {
 });
 addEventListener('keydown', (e) => {
   const k = e.key.toLowerCase();
+  /* the title screen owns the keyboard — otherwise E/J/T/M closed the title
+     without ever starting a world, and the autosave then wrote that blank
+     world over save slot 1 */
+  if (panelMode === 'title') return;
   keys.add(k);
   if (k >= '1' && k <= '9') { hotbarSlot = Number(k) - 1; drawHotbar(); }
   if (k === 'e') { panel.classList.contains('hidden') ? openInventory() : closePanel(); }
@@ -1228,7 +1318,7 @@ addEventListener('keydown', (e) => {
     say(player.fly ? 'Creative flight on' : 'Survival movement');
     drawVitals();
   }
-  if (k === ' ') e.preventDefault();
+  if (k === ' ' && pointerLocked) e.preventDefault();   // let Space activate focused buttons in menus
 });
 addEventListener('keyup', (e) => keys.delete(e.key.toLowerCase()));
 
@@ -1369,12 +1459,22 @@ function worldPayload(name) {
   };
 }
 
+const BACKUP_AGE = 10 * 60 * 1000;   // a recovery copy is only useful if it is meaningfully older
+
 function saveWorld(quiet) {
   const payload = worldPayload(worldName);
   try {
-    // keep the previous save as a recovery copy before overwriting
+    /* Keep a recovery copy, but do not refresh it on every 45s autosave —
+       otherwise "Recover" only ever rewinds you three quarters of a minute. */
     const previous = localStorage.getItem(slotKey(activeSlot));
-    if (previous) localStorage.setItem(slotKey(activeSlot) + ':backup', previous);
+    if (previous) {
+      let rotate = true;
+      try {
+        const held = JSON.parse(localStorage.getItem(slotKey(activeSlot) + ':backup') || 'null');
+        rotate = !held || (payload.savedAt - (held.savedAt || 0)) > BACKUP_AGE;
+      } catch (e) { rotate = true; }
+      if (rotate) localStorage.setItem(slotKey(activeSlot) + ':backup', previous);
+    }
     localStorage.setItem(slotKey(activeSlot), JSON.stringify(payload));
     if (!quiet) say('World saved');
   } catch (e) {
@@ -1387,7 +1487,9 @@ function applyPayload(d) {
   clock = d.clock ?? clock;
   territory = d.territory || TERRITORY_START;
   worldName = d.name || worldName;
-  player.pos.fromArray(d.pos); player.yaw = d.yaw; player.pitch = d.pitch;
+  if (Array.isArray(d.pos) && d.pos.length === 3 && d.pos.every((v) => Number.isFinite(v))) player.pos.fromArray(d.pos);
+  if (Number.isFinite(d.yaw)) player.yaw = d.yaw;
+  if (Number.isFinite(d.pitch)) player.pitch = d.pitch;
   player.health = d.health ?? 20; player.food = d.food ?? 20;
   rpg = d.rpg ? { ...freshRpg(), ...d.rpg, completed:[...(d.rpg.completed || [])], jobs:{...(d.rpg.jobs || {})} } : freshRpg();
   inventory.clear(); (d.inventory || []).forEach(([id, n]) => inventory.set(id, n));
@@ -1464,13 +1566,25 @@ function settlerMesh(spec) {
   label.position.set(0,2.45,0); label.scale.set(3.5,.88,1); group.add(label);
   return group;
 }
+function disposeSettler(settler) {
+  settler.group.traverse((node) => {
+    if (node.geometry) node.geometry.dispose();
+    const mats = node.material ? (Array.isArray(node.material) ? node.material : [node.material]) : [];
+    mats.forEach((m) => { if (m.map) m.map.dispose(); m.dispose(); });
+  });
+}
 function spawnSettlers() {
-  settlers.forEach((settler) => scene.remove(settler.group));
+  /* remove AND dispose — every settler carries seven geometries and a canvas
+     texture, and a slot switch used to orphan the whole set on the GPU */
+  settlers.forEach((settler) => { scene.remove(settler.group); disposeSettler(settler); });
   settlers.length=0;
   SETTLERS.forEach((spec) => {
-    const y=heightAt(spec.x,spec.z)+1;
-    const group=settlerMesh(spec); group.position.set(spec.x+.5,y,spec.z+.5); scene.add(group);
-    settlers.push({spec,group,pos:new THREE.Vector3(spec.x+.5,y,spec.z+.5)});
+    const x = Math.max(-territory + 3, Math.min(territory - 3, spec.x));
+    const z = Math.max(-territory + 3, Math.min(territory - 3, spec.z));
+    // never below the waterline: on a low-lying seed all three stood on the seabed
+    const y = Math.max(heightAt(x, z) + 1, SEA_LEVEL + 1);
+    const group=settlerMesh(spec); group.position.set(x+.5,y,z+.5); scene.add(group);
+    settlers.push({spec,group,pos:new THREE.Vector3(x+.5,y,z+.5)});
   });
 }
 function nearestSettler(maxDistance) {
@@ -1723,10 +1837,17 @@ function hitMob(mob) {
     const i = mobs.indexOf(mob);
     if (i >= 0) removeMob(i);
     if (mob.spec.drop) give(mob.spec.drop.id, mob.spec.drop.n);
-    questEvent('defeat', 0, 1);
-    rpg.coins += 2;
-    addXp(12);
-    say(mob.spec.name + ' defeated · +2 frontier marks');
+    /* a bounty is for defending the settlement — grazing animals are food,
+       not a wage, or hunting hoppers out-earns every quest in the game */
+    if (mob.spec.hostile) {
+      questEvent('defeat', 0, 1);
+      rpg.coins += 2;
+      addXp(12);
+      say(mob.spec.name + ' defeated · +2 frontier marks');
+    } else {
+      addXp(3);
+      say(mob.spec.name + ' hunted');
+    }
   }
 }
 
@@ -1795,6 +1916,10 @@ function frame(now) {
   last = now;
 
   if (panelMode === 'title') { renderer.render(scene, camera); return; }
+
+  /* a panel is open: the world pauses. Without this the player kept walking,
+     drowning and taking mob damage while reading the journal. */
+  if (panelMode !== 'none') { keys.clear(); renderer.render(scene, camera); return; }
 
   physics(dt);
   keepInsideFrontier();
@@ -1874,6 +1999,21 @@ function startGame(fresh) {
   noteDiscovery();
   say('Left click and hold to mine · E for the bag · M for the map');
 }
+
+/* Progress used to be durable only at the 45s autosave boundary — close the
+   tab after levelling up and the level was gone. */
+let savedOnExit = false;
+const saveOnExit = () => {
+  if (panelMode === 'title' || savedOnExit) return;
+  savedOnExit = true;
+  saveWorld(true);
+};
+addEventListener('pagehide', saveOnExit);
+addEventListener('beforeunload', saveOnExit);
+addEventListener('pageshow', () => { savedOnExit = false; });
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden') saveOnExit(); else savedOnExit = false;
+});
 
 showTitle();
 requestAnimationFrame(frame);
