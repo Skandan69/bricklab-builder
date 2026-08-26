@@ -15,9 +15,13 @@ export type BrickLabDb = BaseSQLiteDatabase<"async", unknown, typeof schema>;
 export async function getAnyDb(): Promise<BrickLabDb | null> {
   const url = process.env.TURSO_DATABASE_URL;
   if (url) {
+    /* The web client speaks HTTP and nothing else, which is right for Turso.
+       A `file:` URL is for running the real routes against a real database
+       locally, and needs the node client instead. */
+    const local = url.startsWith("file:");
     const [{ drizzle }, { createClient }] = await Promise.all([
       import("drizzle-orm/libsql"),
-      import("@libsql/client/web"),
+      local ? import("@libsql/client") : import("@libsql/client/web"),
     ]);
     const client = createClient({ url, authToken: process.env.TURSO_AUTH_TOKEN });
     return drizzle(client, { schema }) as unknown as BrickLabDb;

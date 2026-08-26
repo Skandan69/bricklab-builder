@@ -1,0 +1,642 @@
+/* =========================================================================
+   BrickLab — Studio Dark
+   -------------------------------------------------------------------------
+   A design layer, not a repaint. globals.css still holds the original light
+   theme and every layout rule; this file adds the token set the site never
+   had (one type scale, one spacing rhythm, one set of radii, one shadow
+   ramp, one motion curve) and re-skins the public surfaces on top of it.
+   Loaded after globals.css, and scoped to the marketing shell plus the
+   builder chrome so the 3D canvases are untouched.
+   ========================================================================= */
+
+:root {
+  /* --- ground ---------------------------------------------------------- */
+  --bl-bg:        #07080b;
+  --bl-bg-lift:   #0b0d12;
+  --bl-surface:   #11141b;
+  --bl-surface-2: #171b24;
+  --bl-surface-3: #1e2430;
+
+  /* --- edges ----------------------------------------------------------- */
+  --bl-line:      rgba(255, 255, 255, .07);
+  --bl-line-mid:  rgba(255, 255, 255, .12);
+  --bl-line-hi:   rgba(255, 255, 255, .22);
+
+  /* --- ink ------------------------------------------------------------- */
+  --bl-text:      #eef2f8;
+  --bl-text-2:    #9aa6b8;
+  --bl-text-3:    #6d798b;
+
+  /* --- accents: the brick colours, pulled up for a dark ground --------- */
+  --bl-brand:     #ff5f42;
+  --bl-brand-lo:  #d63f26;
+  --bl-blue:      #5aa9ff;
+  --bl-gold:      #ffc65c;
+  --bl-green:     #4ad07f;
+
+  /* --- type ------------------------------------------------------------ */
+  --bl-display: "Space Grotesk", "Segoe UI", system-ui, sans-serif;
+  --bl-text-font: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+
+  /* --- radii ----------------------------------------------------------- */
+  --bl-r-xs: 8px;
+  --bl-r-s:  12px;
+  --bl-r-m:  18px;
+  --bl-r-l:  26px;
+
+  /* --- depth: one ramp, used consistently ------------------------------ */
+  --bl-e1: 0 1px 2px rgba(0, 0, 0, .5);
+  --bl-e2: 0 10px 30px -14px rgba(0, 0, 0, .8), 0 1px 0 rgba(255,255,255,.04) inset;
+  --bl-e3: 0 28px 70px -26px rgba(0, 0, 0, .9), 0 1px 0 rgba(255,255,255,.06) inset;
+
+  /* --- motion: restrained, one curve ----------------------------------- */
+  --bl-t: 200ms cubic-bezier(.2, .7, .3, 1);
+}
+
+/* The page background follows the shell it is showing. */
+html:has(.welcome-shell),
+html:has(.builder-shell) { background: var(--bl-bg); }
+
+body:has(.welcome-shell),
+body:has(.builder-shell) {
+  background: var(--bl-bg);
+  color: var(--bl-text);
+  font-family: var(--bl-text-font);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .welcome-shell *, .builder-shell * {
+    animation-duration: .001ms !important;
+    transition-duration: .001ms !important;
+  }
+}
+
+/* =========================================================================
+   Shell
+   ========================================================================= */
+.welcome-shell {
+  background: var(--bl-bg);
+  color: var(--bl-text);
+  font-family: var(--bl-text-font);
+  position: relative;
+  overflow-x: hidden;
+  overflow-y: visible;
+}
+
+/* One warm light source behind the hero, and a cool one under the gallery.
+   Everything else is flat — depth comes from the shadow ramp, not glow. */
+.welcome-shell::before {
+  content: "";
+  position: absolute;
+  inset: -20% -10% auto -10%;
+  height: 900px;
+  pointer-events: none;
+  background:
+    radial-gradient(60% 55% at 22% 30%, rgba(255, 95, 66, .16), transparent 70%),
+    radial-gradient(50% 50% at 82% 12%, rgba(90, 169, 255, .13), transparent 72%);
+  filter: blur(20px);
+  z-index: 0;
+}
+.welcome-shell > * { position: relative; z-index: 1; }
+
+/* =========================================================================
+   Navigation
+   ========================================================================= */
+.welcome-nav {
+  height: 74px;
+  max-width: 1240px;
+  padding: 0 32px;
+  backdrop-filter: blur(14px);
+}
+.welcome-shell .logo {
+  color: var(--bl-text);
+  font-family: var(--bl-display);
+  font-weight: 700;
+  font-size: 20px;
+  letter-spacing: -.02em;
+}
+.welcome-shell .logo-mark {
+  background: var(--bl-brand);
+  box-shadow: 0 6px 18px -6px rgba(255, 95, 66, .8);
+  border-radius: 6px;
+  transform: rotate(-6deg);
+  transition: transform var(--bl-t);
+}
+.welcome-shell .logo:hover .logo-mark { transform: rotate(0deg) scale(1.04); }
+.welcome-shell .logo-mark i { background: rgba(255,255,255,.92); box-shadow: none; }
+
+.welcome-links { display: flex; gap: 4px; }
+.welcome-links a {
+  color: var(--bl-text-2);
+  text-decoration: none;
+  font-size: 13.5px;
+  font-weight: 500;
+  padding: 8px 12px;
+  border-radius: var(--bl-r-xs);
+  transition: color var(--bl-t), background var(--bl-t);
+}
+.welcome-links a:hover { color: var(--bl-text); background: rgba(255,255,255,.05); }
+
+.welcome-shell .beta-pill {
+  border: 1px solid var(--bl-line-mid);
+  background: rgba(255,255,255,.03);
+  color: var(--bl-text-2);
+  border-radius: 999px;
+  padding: 7px 14px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .08em;
+}
+
+/* =========================================================================
+   Hero
+   ========================================================================= */
+.hero { max-width: 1240px; padding: 76px 32px 92px; gap: 56px; }
+
+.welcome-shell .eyebrow {
+  color: var(--bl-text-2);
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: .18em;
+}
+.welcome-shell .eyebrow span {
+  width: 26px; height: 2px; border-radius: 2px;
+  background: linear-gradient(90deg, var(--bl-brand), transparent);
+}
+
+.hero h1 {
+  font-family: var(--bl-display);
+  font-weight: 700;
+  font-size: clamp(48px, 5.6vw, 82px);
+  line-height: .96;
+  letter-spacing: -.035em;
+  margin: 20px 0 20px;
+}
+.hero h1 em {
+  font-style: normal;
+  background: linear-gradient(100deg, var(--bl-brand) 0%, var(--bl-gold) 62%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.hero-lede { color: var(--bl-text-2); font-size: 17px; line-height: 1.62; }
+
+/* --- buttons: one shape language ------------------------------------- */
+.welcome-shell .cta {
+  min-height: 46px;
+  padding: 0 20px;
+  border-radius: var(--bl-r-s);
+  border: 1px solid var(--bl-line-mid);
+  background: rgba(255,255,255,.04);
+  color: var(--bl-text);
+  font-family: var(--bl-text-font);
+  font-weight: 600;
+  font-size: 14.5px;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  box-shadow: var(--bl-e1);
+  transition: transform var(--bl-t), background var(--bl-t), border-color var(--bl-t), box-shadow var(--bl-t);
+}
+.welcome-shell .cta:hover {
+  transform: translateY(-2px);
+  border-color: var(--bl-line-hi);
+  background: rgba(255,255,255,.07);
+  box-shadow: var(--bl-e2);
+}
+.welcome-shell .cta:active { transform: translateY(0); }
+.welcome-shell .cta:focus-visible { outline: 2px solid var(--bl-blue); outline-offset: 3px; }
+
+.welcome-shell .primary-cta {
+  background: linear-gradient(180deg, var(--bl-brand), var(--bl-brand-lo));
+  border-color: transparent;
+  color: #fff;
+  box-shadow: 0 10px 30px -12px rgba(255, 95, 66, .9);
+}
+.welcome-shell .primary-cta:hover {
+  background: linear-gradient(180deg, #ff7358, var(--bl-brand));
+  box-shadow: 0 16px 40px -12px rgba(255, 95, 66, .95);
+}
+.welcome-shell .secondary-cta { background: rgba(255,255,255,.06); }
+.welcome-shell .world-cta { color: var(--bl-text-2); }
+.welcome-shell .world-cta:hover { color: var(--bl-text); }
+
+.trust-row { margin-top: 34px; display: flex; gap: 26px; flex-wrap: wrap; color: var(--bl-text-3); font-size: 13px; }
+.trust-row span { display: inline-flex; align-items: baseline; gap: 8px; }
+.trust-row b { font-family: var(--bl-display); color: var(--bl-brand); font-size: 12px; letter-spacing: .06em; }
+
+/* --- hero visual ------------------------------------------------------ */
+.hero-city-visual {
+  border-radius: var(--bl-r-l);
+  overflow: hidden;
+  border: 1px solid var(--bl-line);
+  box-shadow: var(--bl-e3);
+  background: var(--bl-surface);
+}
+.hero-city-visual img { filter: saturate(1.04) contrast(1.03) brightness(.94); }
+.hero-city-shade {
+  background: linear-gradient(180deg, rgba(7,8,11,.05) 0%, rgba(7,8,11,.55) 72%, rgba(7,8,11,.85) 100%);
+}
+.hero-world-chip, .hero-feature {
+  background: rgba(12, 14, 19, .78);
+  backdrop-filter: blur(10px);
+  border: 1px solid var(--bl-line-mid);
+  border-radius: var(--bl-r-s);
+  color: var(--bl-text);
+  box-shadow: var(--bl-e2);
+}
+.hero-world-chip span, .hero-feature span { color: var(--bl-text-2); }
+.hero-world-chip strong { font-family: var(--bl-display); letter-spacing: -.01em; }
+.hero-world-chip small { color: var(--bl-text-3); }
+.hero-feature b { color: var(--bl-brand); font-family: var(--bl-display); }
+
+/* =========================================================================
+   Section rhythm
+   ========================================================================= */
+.game-universe, .world-showcase, .mode-grid {
+  max-width: 1240px;
+  margin-inline: auto;
+  padding-inline: 32px;
+  background: transparent;
+}
+.game-universe { padding-block: 84px; border-top: 1px solid var(--bl-line); }
+.world-showcase { padding-block: 84px; border-top: 1px solid var(--bl-line); }
+.mode-grid { padding-block: 76px; border-top: 1px solid var(--bl-line); }
+
+.welcome-shell h2 {
+  font-family: var(--bl-display);
+  font-weight: 700;
+  font-size: clamp(30px, 3.4vw, 44px);
+  line-height: 1.08;
+  letter-spacing: -.03em;
+  color: var(--bl-text);
+}
+.universe-heading p, .world-showcase-head p { color: var(--bl-text-2); font-size: 15.5px; line-height: 1.62; }
+
+/* =========================================================================
+   The four games
+   ========================================================================= */
+.universe-card {
+  position: relative;
+  background: linear-gradient(180deg, var(--bl-surface-2), var(--bl-surface));
+  border: 1px solid var(--bl-line);
+  border-radius: var(--bl-r-m);
+  color: var(--bl-text);
+  overflow: hidden;
+  box-shadow: var(--bl-e2);
+  transition: transform var(--bl-t), border-color var(--bl-t), box-shadow var(--bl-t);
+}
+/* a hairline of the card's own colour along the top edge */
+.universe-card::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 2px;
+  background: var(--card-accent, var(--bl-brand));
+  opacity: .85;
+}
+.cities-card    { --card-accent: var(--bl-brand); }
+.frontier-card  { --card-accent: var(--bl-green); }
+.plots-card     { --card-accent: var(--bl-gold); }
+.openworld-card { --card-accent: var(--bl-blue); }
+
+.universe-card:hover {
+  transform: translateY(-3px);
+  border-color: var(--bl-line-mid);
+  box-shadow: var(--bl-e3);
+}
+.universe-topline { color: var(--bl-text-3); font-size: 11.5px; letter-spacing: .1em; text-transform: uppercase; }
+.universe-topline b {
+  color: var(--card-accent);
+  background: color-mix(in srgb, var(--card-accent) 14%, transparent);
+  border: 1px solid color-mix(in srgb, var(--card-accent) 32%, transparent);
+  border-radius: 999px;
+  padding: 3px 9px;
+  font-size: 10.5px;
+  letter-spacing: .08em;
+}
+.universe-number {
+  font-family: var(--bl-display);
+  color: rgba(255,255,255,.06);
+  font-size: 58px;
+  line-height: 1;
+  letter-spacing: -.04em;
+}
+.universe-card h3 { font-family: var(--bl-display); font-weight: 700; letter-spacing: -.02em; color: var(--bl-text); }
+.universe-card p  { color: var(--bl-text-2); line-height: 1.6; }
+.universe-card ul { list-style: none; padding: 0; margin: 16px 0; display: grid; gap: 8px; }
+.universe-card li {
+  color: var(--bl-text-2);
+  font-size: 13.5px;
+  padding-left: 20px;
+  position: relative;
+}
+.universe-card li::before {
+  content: "";
+  position: absolute;
+  left: 2px; top: 7px;
+  width: 7px; height: 7px;
+  border-radius: 2px;
+  background: var(--card-accent);
+  opacity: .75;
+}
+.universe-actions button, .universe-actions a {
+  border-radius: var(--bl-r-xs);
+  border: 1px solid var(--bl-line-mid);
+  background: rgba(255,255,255,.05);
+  color: var(--bl-text);
+  font-weight: 600;
+  font-size: 13.5px;
+  padding: 10px 15px;
+  text-decoration: none;
+  transition: background var(--bl-t), border-color var(--bl-t), color var(--bl-t);
+}
+.universe-actions button:hover, .universe-actions a:hover {
+  background: rgba(255,255,255,.09);
+  border-color: var(--bl-line-hi);
+}
+.universe-actions .primary-link { color: var(--card-accent); border-color: color-mix(in srgb, var(--card-accent) 34%, transparent); }
+
+.universe-roadmap {
+  margin-top: 28px;
+  padding: 16px 18px;
+  border: 1px solid var(--bl-line);
+  border-radius: var(--bl-r-s);
+  background: rgba(255,255,255,.02);
+  color: var(--bl-text-2);
+  font-size: 13.5px;
+}
+.universe-roadmap b { color: var(--bl-text); }
+
+/* =========================================================================
+   Showcase worlds
+   ========================================================================= */
+.world-card {
+  background: var(--bl-surface);
+  border: 1px solid var(--bl-line);
+  border-radius: var(--bl-r-m);
+  overflow: hidden;
+  color: var(--bl-text);
+  box-shadow: var(--bl-e2);
+  transition: transform var(--bl-t), border-color var(--bl-t), box-shadow var(--bl-t);
+}
+.world-card:hover { transform: translateY(-3px); border-color: var(--bl-line-mid); box-shadow: var(--bl-e3); }
+.world-card-art { position: relative; background: var(--bl-bg-lift); }
+.world-card-art img {
+  filter: saturate(1.02) brightness(.93);
+  transition: transform 420ms cubic-bezier(.2,.7,.3,1), filter var(--bl-t);
+}
+.world-card:hover .world-card-art img { transform: scale(1.03); filter: saturate(1.06) brightness(1); }
+.world-card-art::after {
+  content: "";
+  position: absolute; inset: 0;
+  background: linear-gradient(180deg, transparent 45%, rgba(7,8,11,.72) 100%);
+  pointer-events: none;
+}
+.world-status, .world-number {
+  position: relative; z-index: 2;
+  background: rgba(12,14,19,.82);
+  backdrop-filter: blur(8px);
+  border: 1px solid var(--bl-line-mid);
+  border-radius: 999px;
+  color: var(--bl-text);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .06em;
+}
+.world-card.playable .world-status { color: var(--bl-green); border-color: rgba(74,208,127,.36); }
+.world-card.coming   .world-status { color: var(--bl-text-3); }
+.world-card-copy small { color: var(--bl-text-3); letter-spacing: .09em; text-transform: uppercase; font-size: 11px; }
+.world-card-copy h3 { font-family: var(--bl-display); font-weight: 700; letter-spacing: -.02em; color: var(--bl-text); }
+.world-card-copy p { color: var(--bl-text-2); line-height: 1.58; font-size: 14px; }
+.world-card-copy button {
+  border-radius: var(--bl-r-xs);
+  border: 1px solid var(--bl-line-mid);
+  background: rgba(255,255,255,.05);
+  color: var(--bl-text);
+  font-weight: 600;
+  transition: background var(--bl-t), border-color var(--bl-t);
+}
+.world-card-copy button:hover { background: rgba(255,255,255,.1); border-color: var(--bl-line-hi); }
+/* globals.css gives this a cream fill, which on the dark ground rendered as
+   near-white text on near-white. Restate the whole button, not just its ink. */
+.world-card-copy .preview-button {
+  background: rgba(255, 255, 255, .04);
+  border: 1px dashed var(--bl-line-mid);
+  color: var(--bl-text-3);
+}
+.world-card-copy .preview-button:hover {
+  background: rgba(255, 255, 255, .08);
+  border-color: var(--bl-line-hi);
+  color: var(--bl-text-2);
+}
+
+.world-notice {
+  background: var(--bl-surface-2);
+  border: 1px solid var(--bl-line-mid);
+  border-radius: var(--bl-r-m);
+  color: var(--bl-text);
+  box-shadow: var(--bl-e3);
+}
+.world-notice span { color: var(--bl-brand); }
+.world-notice p { color: var(--bl-text-2); }
+
+.world-gallery-footer {
+  border-top: 1px solid var(--bl-line);
+  color: var(--bl-text-3);
+  padding-top: 22px;
+  margin-top: 34px;
+}
+.world-gallery-footer strong { color: var(--bl-text); font-family: var(--bl-display); }
+
+/* =========================================================================
+   Create / Adventure / Compete
+   ========================================================================= */
+.mode-grid article {
+  background: rgba(255,255,255,.02);
+  border: 1px solid var(--bl-line);
+  border-radius: var(--bl-r-m);
+  color: var(--bl-text);
+  transition: border-color var(--bl-t), background var(--bl-t);
+}
+.mode-grid article:hover { border-color: var(--bl-line-mid); background: rgba(255,255,255,.04); }
+.mode-number { color: var(--bl-brand); font-family: var(--bl-display); letter-spacing: .08em; }
+.mode-grid h2 { font-size: clamp(24px, 2.4vw, 30px); }
+.mode-grid p { color: var(--bl-text-2); line-height: 1.6; }
+.mode-grid button, .mode-grid a {
+  color: var(--bl-text);
+  background: none;
+  border: 0;
+  padding: 0;
+  font-weight: 600;
+  text-decoration: none;
+  border-bottom: 1px solid var(--bl-line-hi);
+  transition: color var(--bl-t), border-color var(--bl-t);
+}
+.mode-grid button:hover, .mode-grid a:hover { color: var(--bl-brand); border-color: var(--bl-brand); }
+
+/* =========================================================================
+   Footer
+   ========================================================================= */
+.welcome-shell footer {
+  max-width: 1240px;
+  margin-inline: auto;
+  padding: 34px 32px 60px;
+  border-top: 1px solid var(--bl-line);
+  color: var(--bl-text-3);
+  font-size: 12.5px;
+  line-height: 1.6;
+  background: transparent;
+}
+
+/* =========================================================================
+   Builder chrome — the canvas itself is left alone
+   ========================================================================= */
+.builder-shell { background: var(--bl-bg); color: var(--bl-text); font-family: var(--bl-text-font); }
+.app-header {
+  background: rgba(11,13,18,.86);
+  backdrop-filter: blur(14px);
+  border-bottom: 1px solid var(--bl-line);
+  color: var(--bl-text);
+}
+.builder-shell .logo, .builder-shell .logo-button { color: var(--bl-text); font-family: var(--bl-display); }
+.builder-shell .logo-mark { background: var(--bl-brand); border-radius: 6px; box-shadow: 0 6px 18px -6px rgba(255,95,66,.75); }
+.builder-shell .logo-mark i { background: rgba(255,255,255,.92); box-shadow: none; }
+.app-mode { color: var(--bl-text-3); font-size: 13px; }
+.app-mode .active { color: var(--bl-text); font-weight: 600; }
+.header-actions button {
+  border-radius: var(--bl-r-xs);
+  border: 1px solid var(--bl-line-mid);
+  background: rgba(255,255,255,.05);
+  color: var(--bl-text);
+  font-weight: 600;
+  padding: 8px 14px;
+  transition: background var(--bl-t), border-color var(--bl-t);
+}
+.header-actions button:hover { background: rgba(255,255,255,.09); border-color: var(--bl-line-hi); }
+
+.mission-panel, .demo-panel, .free-panel {
+  background: rgba(13,16,22,.92);
+  backdrop-filter: blur(16px);
+  border: 1px solid var(--bl-line-mid);
+  border-radius: var(--bl-r-m);
+  color: var(--bl-text);
+  box-shadow: var(--bl-e3);
+}
+.mission-panel h2, .demo-panel h2, .free-panel h2 {
+  font-family: var(--bl-display); font-weight: 700; letter-spacing: -.02em; color: var(--bl-text);
+}
+.mission-panel p, .demo-panel p, .free-panel p, .demo-summary { color: var(--bl-text-2); }
+.panel-label { color: var(--bl-text-3); letter-spacing: .1em; text-transform: uppercase; font-size: 11px; }
+.progress-track { background: rgba(255,255,255,.08); border-radius: 999px; overflow: hidden; }
+.progress-track span { background: linear-gradient(90deg, var(--bl-brand), var(--bl-gold)); }
+.mission-list li { color: var(--bl-text-2); }
+.mission-list li.current { color: var(--bl-text); }
+.mission-list li.done .step-dot { background: var(--bl-green); border-color: var(--bl-green); color: #06210f; }
+.step-dot { border: 1px solid var(--bl-line-hi); background: rgba(255,255,255,.05); color: var(--bl-text-2); }
+.live-stat, .demo-facts span, .plot-card, .town-owner, .unlock-note, .walk-help {
+  background: rgba(255,255,255,.03);
+  border: 1px solid var(--bl-line);
+  border-radius: var(--bl-r-s);
+  color: var(--bl-text-2);
+}
+.live-stat strong, .demo-facts b, .plot-card b { color: var(--bl-text); font-family: var(--bl-display); }
+.live-badge { color: var(--bl-green); border: 1px solid rgba(74,208,127,.34); background: rgba(74,208,127,.1); border-radius: 999px; }
+.read-only-badge { color: var(--bl-gold); border-color: rgba(255,198,92,.34); background: rgba(255,198,92,.1); }
+
+.city-selector button, .view-buttons button, .blueprint-grid button, .layout-grid button,
+.weather-grid button, .destination-buttons button, .rail-look-buttons button, .permission-buttons button {
+  border-radius: var(--bl-r-xs);
+  border: 1px solid var(--bl-line);
+  background: rgba(255,255,255,.04);
+  color: var(--bl-text-2);
+  font-weight: 500;
+  transition: background var(--bl-t), border-color var(--bl-t), color var(--bl-t);
+}
+.city-selector button:hover, .view-buttons button:hover, .blueprint-grid button:hover,
+.layout-grid button:hover, .weather-grid button:hover, .destination-buttons button:hover,
+.rail-look-buttons button:hover, .permission-buttons button:hover {
+  background: rgba(255,255,255,.08); color: var(--bl-text); border-color: var(--bl-line-mid);
+}
+.city-selector button.selected, .view-buttons button.selected, .permission-buttons button.selected {
+  background: rgba(90,169,255,.14); border-color: rgba(90,169,255,.4); color: var(--bl-blue);
+}
+.like-button { border-radius: var(--bl-r-s); border: 1px solid var(--bl-line-mid); background: rgba(255,255,255,.04); color: var(--bl-text-2); }
+.like-button.liked { color: var(--bl-brand); border-color: rgba(255,95,66,.42); background: rgba(255,95,66,.12); }
+.build-own {
+  border-radius: var(--bl-r-s);
+  border: 0;
+  background: linear-gradient(180deg, var(--bl-brand), var(--bl-brand-lo));
+  color: #fff;
+  font-weight: 600;
+  box-shadow: 0 10px 28px -14px rgba(255,95,66,.9);
+}
+.win-card { background: rgba(255,255,255,.04); border: 1px solid var(--bl-line-mid); border-radius: var(--bl-r-m); }
+.win-card .trophy { color: var(--bl-gold); }
+kbd {
+  background: rgba(255,255,255,.06);
+  border: 1px solid var(--bl-line-mid);
+  border-bottom-width: 2px;
+  border-radius: 6px;
+  color: var(--bl-text);
+  font-family: var(--bl-text-font);
+  font-size: 11px;
+}
+.loading-card { background: rgba(13,16,22,.92); border: 1px solid var(--bl-line-mid); border-radius: var(--bl-r-m); color: var(--bl-text-2); box-shadow: var(--bl-e3); }
+.panel-toggle { background: rgba(255,255,255,.06); border: 1px solid var(--bl-line-mid); color: var(--bl-text); border-radius: var(--bl-r-xs); }
+
+/* =========================================================================
+   Small screens
+   ========================================================================= */
+@media (max-width: 900px) {
+  .welcome-nav { height: auto; padding: 16px 20px; flex-wrap: wrap; gap: 10px; }
+  .welcome-links { order: 3; width: 100%; overflow-x: auto; }
+  .hero { padding: 44px 20px 60px; }
+  .game-universe, .world-showcase, .mode-grid { padding-inline: 20px; padding-block: 56px; }
+  .welcome-shell footer { padding: 28px 20px 48px; }
+}
+
+/* =========================================================================
+   Worlds that have not been built yet
+   -------------------------------------------------------------------------
+   These cards used to carry a photoreal render of a world the engine cannot
+   produce. A panel that says so is more honest and reads better in the grid
+   than a picture that sets an expectation nothing can meet.
+   ========================================================================= */
+.world-card-art-empty {
+  display: grid;
+  place-items: center;
+  min-height: 190px;
+  background:
+    repeating-linear-gradient(
+      -45deg,
+      rgba(255, 255, 255, .028) 0 12px,
+      transparent 12px 24px
+    ),
+    var(--bl-surface-2);
+  border-bottom: 1px solid var(--bl-line);
+}
+.world-card-art-empty::after { content: none; }
+/* the status pill and the number keep their corners; only the art changes */
+.world-card-art-empty { position: relative; }
+.world-card-art-empty .world-status { position: absolute; top: 12px; left: 12px; }
+.world-card-art-empty .world-number {
+  position: absolute; bottom: 12px; right: 12px;
+  border: 0; background: transparent; backdrop-filter: none;
+  font-family: var(--bl-display); font-size: 24px; color: rgba(255,255,255,.1);
+}
+.world-card-soon {
+  font-family: var(--bl-display);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+  color: var(--bl-text-3);
+  border: 1px dashed var(--bl-line-mid);
+  border-radius: var(--bl-r-xs);
+  padding: 9px 16px;
+}
+.world-card:hover .world-card-art-empty { background-color: var(--bl-surface-3); }

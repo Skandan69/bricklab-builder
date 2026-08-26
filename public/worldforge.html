@@ -255,5 +255,7 @@ if(localStorage.getItem('bricklab-frontier-slot-1'))load(1);else generate();
 choose('grass',false);showPanel('controls');requestAnimationFrame(frame);
 })();
 </script>
+<script>window.BRICKLAB_FEEDBACK={context:()=>{try{const s=window.worldforge.state();return{stage:s.stage,territory:s.territory,coins:s.coins,placed:s.placed,claimed:s.claimed.length,expedition:s.expeditionActive};}catch(e){return{stage:'menu'};}}};</script>
+<script src="/feedback.js" defer></script>
 </body>
 </html>

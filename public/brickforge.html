@@ -13653,6 +13653,40 @@ T({ id:'steps4', label:'steps 4×4', w:4, d:4, h:BRICK_H * 2, machine:'steps', c
 T({ id:'steps8', label:'steps 8×4', w:8, d:4, h:BRICK_H * 2, machine:'steps', cat:'Heritage architecture' });
 T({ id:'battle8', label:'battlement 1×8', w:1, d:8, h:BRICK_H, machine:'battlement', tile:true, cat:'Heritage architecture' });
 T({ id:'jharokha2', label:'balcony 2×2', w:2, d:2, h:BRICK_H * 3, machine:'jharokha', tile:true, cat:'Heritage architecture' });
+/* --- height, water and planting: the pieces the showcase worlds needed --- */
+T({ id:'minaret4', label:'minaret 4×4', w:4, d:4, h:BRICK_H * 18, machine:'minaret', tile:true, cat:'Heritage architecture' });
+T({ id:'torana8', label:'ceremonial gateway 2×8', w:2, d:8, h:BRICK_H * 9, machine:'torana', tile:true, cat:'Heritage architecture' });
+T({ id:'colonnade8', label:'colonnade 2×8', w:2, d:8, h:BRICK_H * 5, machine:'colonnade', tile:true, cat:'Heritage architecture' });
+T({ id:'pavilion6', label:'garden pavilion 6×6', w:6, d:6, h:BRICK_H * 7, machine:'pavilion', tile:true, cat:'Heritage architecture' });
+T({ id:'parapet8', label:'carved parapet 1×8', w:1, d:8, h:BRICK_H * 1.3, machine:'parapet', tile:true, cat:'Heritage architecture' });
+T({ id:'stepwell8', label:'stepwell 8×8', w:8, d:8, h:BRICK_H * 3, machine:'stepwell', tile:true, cat:'Heritage architecture' });
+T({ id:'ghat8', label:'river steps 8×4', w:8, d:4, h:BRICK_H * 2.5, machine:'ghat', tile:true, cat:'Heritage architecture' });
+T({ id:'elephant3', label:'ceremonial elephant', w:3, d:5, h:BRICK_H * 4, machine:'elephant', tile:true, cat:'Heritage architecture' });
+T({ id:'banner1', label:'banner pole', w:1, d:1, h:BRICK_H * 7, machine:'banner', tile:true, cat:'Heritage architecture' });
+
+T({ id:'pool8', label:'reflecting pool 8×8', w:8, d:8, h:PLATE_H * 2, machine:'pool', tile:true, fixedColor:'#3f8fbf', fixedAlpha:0.78, cat:'Nature & landscape' });
+T({ id:'channel8', label:'water channel 2×8', w:2, d:8, h:PLATE_H * 2, machine:'channel', tile:true, fixedColor:'#3f8fbf', fixedAlpha:0.78, cat:'Nature & landscape' });
+T({ id:'cypress1', label:'cypress tree', w:1, d:1, h:BRICK_H * 6, machine:'cypress', tile:true, cat:'Nature & landscape' });
+T({ id:'palm2', label:'palm tree', w:2, d:2, h:BRICK_H * 7, machine:'palm', tile:true, cat:'Nature & landscape' });
+T({ id:'parterre8', label:'formal garden bed 8×8', w:8, d:8, h:PLATE_H * 2, machine:'parterre', tile:true, cat:'Nature & landscape' });
+
+T({ id:'towerGlass8', label:'glass tower 8×8', w:8, d:8, h:BRICK_H * 12, machine:'glasstower', tile:true, cat:'City modules' });
+T({ id:'canopy8', label:'station canopy 8×8', w:8, d:8, h:BRICK_H * 4, machine:'canopy', tile:true, cat:'City modules' });
+T({ id:'plaza8', label:'plaza paving 8×8', w:8, d:8, h:PLATE_H, machine:'plaza', tile:true, cat:'City modules' });
+T({ id:'hvac4', label:'rooftop plant 4×4', w:4, d:4, h:BRICK_H * 1.6, machine:'hvac', tile:true, cat:'City modules' });
+T({ id:'antenna1', label:'roof mast', w:1, d:1, h:BRICK_H * 9, machine:'antenna', tile:true, cat:'City modules' });
+T({ id:'shopfront4', label:'shopfront 1×4', w:1, d:4, h:BRICK_H * 4, machine:'shopfront', tile:true, cat:'City modules' });
+/* --- monumental heritage: the forms a temple city is made of --- */
+T({ id:'gopuram8', label:'gopuram gate tower 8×6', w:8, d:6, h:BRICK_H * 20, machine:'gopuram', tile:true, cat:'Heritage architecture' });
+T({ id:'shikhara6', label:'temple spire 6×6', w:6, d:6, h:BRICK_H * 14, machine:'shikhara', tile:true, cat:'Heritage architecture' });
+T({ id:'mandapa8', label:'pillared hall 8×8', w:8, d:8, h:BRICK_H * 6, machine:'mandapa', tile:true, cat:'Heritage architecture' });
+T({ id:'templeTank8', label:'temple tank 8×8', w:8, d:8, h:BRICK_H * 2.6, machine:'tank', tile:true, cat:'Heritage architecture' });
+T({ id:'haveli4', label:'haveli front 1×4', w:1, d:4, h:BRICK_H * 6, machine:'haveli', tile:true, cat:'Heritage architecture' });
+T({ id:'victoryTower4', label:'victory tower 4×4', w:4, d:4, h:BRICK_H * 15, machine:'victory', tile:true, cat:'Heritage architecture' });
+T({ id:'marketStall4', label:'market stall 4×4', w:4, d:4, h:BRICK_H * 4, machine:'stall', tile:true, cat:'Heritage architecture' });
+T({ id:'templeChariot3', label:'temple chariot', w:3, d:4, h:BRICK_H * 8, machine:'ratha', tile:true, cat:'Heritage transport' });
+
+
 
 /* --- city structure --- */
 T({ id:'glass4', label:'glass wall 1×4', w:1, d:4, h:BRICK_H * 3, machine:'glasswall', fixedColor:'#7fb6de', fixedAlpha:0.62, cat:'City modules' });
@@ -13751,7 +13785,10 @@ const COLORS = [
 const geomCache = {}, matCache = {}, ghostMatCache = {};
 
 function studGeom(h) {
-  const g = new THREE.CylinderGeometry(STUD_R, STUD_R, STUD_H, 14);
+  /* 10 sides, not 14. A stud is a few pixels across and a baseplate carries
+     64 of them; the four extra sides cost ~30% of the world's triangles and
+     nobody can see them. */
+  const g = new THREE.CylinderGeometry(STUD_R, STUD_R, STUD_H, 10);
   g.translate(0, h + STUD_H / 2, 0);
   return g;
 }
@@ -14264,6 +14301,478 @@ function buildGeom(t) {
   } else if (t.machine === 'computer') {
     parts.push(boxAt(w*.75,h*.62,d-.12,0,h*.64,0));
     parts.push(boxAt(.18,h*.42,.18,0,h*.23,0)); parts.push(boxAt(w*.7,.12,d*.55,0,.08,0));
+  } else if (t.machine === 'minaret') {
+    /* A tapered shaft with two balconies and a capped dome — height the
+       catalogue could not previously express in one piece. */
+    const r = w / 2 - 0.15;
+    const shaftH = h * 0.72;
+    const shaft = new THREE.CylinderGeometry(r * 0.62, r, shaftH, 16);
+    shaft.translate(0, shaftH / 2, 0);
+    parts.push(shaft);
+    parts.push(boxAt(w - 0.05, BRICK_H * 0.5, d - 0.05, 0, BRICK_H * 0.25, 0));
+    [0.34, 0.62].forEach((f) => {
+      const rr = r * (1 - f * 0.36) + 0.34;
+      parts.push(ringOf(rr, 0.18, shaftH * f, 0.34, 18));
+      for (let i = 0; i < 12; i++) {
+        const a = (i / 12) * Math.PI * 2;
+        parts.push(boxAt(0.13, 0.42, 0.13, Math.cos(a) * rr, shaftH * f + 0.34, Math.sin(a) * rr));
+      }
+    });
+    const capR = r * 0.68, capY = shaftH;
+    const capH = Math.min(h - capY - BRICK_H, capR * 1.15);
+    parts.push(latheOf(DOME_PROFILE, capR, capH, 20, capY));
+    parts.push(latheOf(FINIAL_PROFILE, 0.2, h - capY - capH, 12, capY + capH));
+  } else if (t.machine === 'torana') {
+    /* Two piers carrying a cusped lintel — the entrance a walled complex needs. */
+    const pierW = w - 0.06, pierD = 1.3, legH = h * 0.66;
+    [-1, 1].forEach((k) => {
+      parts.push(boxAt(pierW, legH, pierD, 0, legH / 2, k * (d / 2 - pierD / 2)));
+      parts.push(boxAt(pierW + 0.3, 0.3, pierD + 0.3, 0, 0.15, k * (d / 2 - pierD / 2)));
+      parts.push(boxAt(pierW + 0.26, 0.26, pierD + 0.26, 0, legH - 0.13, k * (d / 2 - pierD / 2)));
+    });
+    const span = d - pierD * 2, cusps = 7;
+    for (let i = 0; i < cusps; i++) {
+      const f = (i + 0.5) / cusps;
+      const z = -span / 2 + f * span;
+      const lift = Math.sin(f * Math.PI) * BRICK_H * 1.5;
+      parts.push(boxAt(pierW * 0.86, BRICK_H * 0.6 + lift, span / cusps + 0.02, 0, legH + (BRICK_H * 0.6 + lift) / 2, z));
+    }
+    parts.push(boxAt(pierW + 0.4, 0.34, d - 0.04, 0, legH + BRICK_H * 2.2, 0));
+    parts.push(boxAt(pierW, BRICK_H * 0.9, d - 1.6, 0, legH + BRICK_H * 2.8, 0));
+    parts.push(latheOf(FINIAL_PROFILE, 0.3, h - legH - BRICK_H * 3.3, 12, legH + BRICK_H * 3.3));
+  } else if (t.machine === 'colonnade') {
+    /* Four columns and an architrave, so a courtyard edge is one placement. */
+    const plinth = BRICK_H * 0.4;
+    parts.push(boxAt(w - 0.04, plinth, d - 0.04, 0, plinth / 2, 0));
+    const colH = h - plinth - BRICK_H * 0.8;
+    for (let i = 0; i < 4; i++) {
+      const z = -d / 2 + 1 + (i / 3) * (d - 2);
+      parts.push(columnAt(0.34, colH, plinth, 0, z));
+    }
+    parts.push(boxAt(w - 0.04, BRICK_H * 0.45, d - 0.04, 0, h - BRICK_H * 0.62, 0));
+    parts.push(boxAt(w + 0.16, BRICK_H * 0.28, d + 0.1, 0, h - BRICK_H * 0.14, 0));
+  } else if (t.machine === 'pavilion') {
+    const deck = BRICK_H * 0.5, colH = h * 0.44, inset = w / 2 - 0.85;
+    parts.push(boxAt(w - 0.02, deck, d - 0.02, 0, deck / 2, 0));
+    [[-inset, -inset], [inset, -inset], [-inset, inset], [inset, inset]].forEach(([x, z]) => {
+      parts.push(columnAt(0.3, colH, deck, x, z));
+    });
+    parts.push(boxAt(w - 0.2, 0.3, d - 0.2, 0, deck + colH + 0.15, 0));
+    /* a square tiered roof rather than a dome, so it reads apart from a chhatri */
+    const roofY = deck + colH + 0.3;
+    const tiers = 4, roofH = h - roofY - BRICK_H * 0.9;
+    for (let i = 0; i < tiers; i++) {
+      const f = i / tiers, s = 1 - f * 0.78;
+      parts.push(boxAt((w - 0.1) * s, roofH / tiers + 0.04, (d - 0.1) * s, 0, roofY + f * roofH + roofH / tiers / 2, 0));
+    }
+    parts.push(latheOf(FINIAL_PROFILE, 0.24, BRICK_H * 0.9, 12, roofY + roofH));
+  } else if (t.machine === 'parapet') {
+    const th = w - 0.08;
+    parts.push(boxAt(th, 0.26, d - 0.02, 0, 0.13, 0));
+    parts.push(boxAt(th + 0.14, 0.24, d - 0.02, 0, h - 0.12, 0));
+    const n = Math.max(4, Math.round(d * 1.2));
+    for (let i = 0; i < n; i++) {
+      const z = -d / 2 + (i + 0.5) * (d / n);
+      const bal = new THREE.CylinderGeometry(th * 0.3, th * 0.38, h - 0.5, 8);
+      bal.translate(0, 0.26 + (h - 0.5) / 2, z);
+      parts.push(bal);
+    }
+  } else if (t.machine === 'stepwell') {
+    /* Concentric square frames, tallest on the outside, so it reads as a pit
+       stepping down to a small floor while still being built upward. */
+    const tiers = 5;
+    const frame = (side, height) => {
+      const wall = side * 0.14 + 0.3;
+      [[1, 0], [-1, 0], [0, 1], [0, -1]].forEach(([ax, az]) => {
+        parts.push(boxAt(ax ? wall : side, height, az ? wall : side,
+          ax * (side / 2 - wall / 2), height / 2, az * (side / 2 - wall / 2)));
+      });
+    };
+    for (let i = 0; i < tiers; i++) {
+      const f = i / (tiers - 1);
+      /* each ring is both smaller and shorter, so the eye reads a descent */
+      frame((w - 0.06) * (1 - f * 0.68), h * (1 - f * 0.8) + 0.12);
+    }
+    parts.push(boxAt(w * 0.22, h * 0.16, d * 0.22, 0, h * 0.08, 0));
+  } else if (t.machine === 'ghat') {
+    const treads = 6;
+    for (let i = 0; i < treads; i++) {
+      const f = i / treads;
+      parts.push(boxAt(w - 0.04, h * (1 - f), (d - 0.04) / treads + 0.02, 0, h * (1 - f) / 2, -d / 2 + (i + 0.5) * (d / treads)));
+    }
+  } else if (t.machine === 'elephant') {
+    /* Stylised and blocky on purpose — a silhouette for a procession, not a model. */
+    const bodyH = h * 0.42;
+    parts.push(boxAt(w - 0.5, bodyH, d * 0.62, 0, h * 0.5, -d * 0.05));
+    parts.push(boxAt(w - 0.9, h * 0.3, d * 0.26, 0, h * 0.62, d * 0.34));
+    [-1, 1].forEach((k) => {
+      parts.push(boxAt(0.12, h * 0.24, d * 0.2, k * (w * 0.4), h * 0.66, d * 0.32));
+      [0.24, -0.24].forEach((zf) => {
+        parts.push(boxAt(w * 0.2, h * 0.3, w * 0.2, k * (w * 0.26), h * 0.15, zf * d));
+      });
+    });
+    for (let i = 0; i < 4; i++) {
+      const f = i / 4;
+      parts.push(boxAt(w * 0.16 * (1 - f * 0.4), h * 0.12, w * 0.16 * (1 - f * 0.4), 0, h * 0.5 - f * h * 0.12, d * 0.46 + f * d * 0.05));
+    }
+    parts.push(boxAt(w - 0.4, h * 0.08, d * 0.5, 0, h * 0.72, -d * 0.05));
+  } else if (t.machine === 'banner') {
+    const pole = new THREE.CylinderGeometry(0.09, 0.11, h, 10);
+    pole.translate(0, h / 2, 0);
+    parts.push(pole);
+    parts.push(boxAt(0.5, 0.2, 0.5, 0, 0.1, 0));
+    parts.push(boxAt(0.06, h * 0.36, 1.5, 0.28, h * 0.74, 0.75));
+    parts.push(latheOf(FINIAL_PROFILE, 0.14, BRICK_H * 0.7, 10, h - BRICK_H * 0.7));
+  } else if (t.machine === 'pool' || t.machine === 'channel') {
+    const rim = 0.34;
+    parts.push(boxAt(w - 0.04, h * 0.62, d - 0.04, 0, h * 0.31, 0));
+    [[1, 0], [-1, 0], [0, 1], [0, -1]].forEach(([ax, az]) => {
+      parts.push(boxAt(ax ? rim : w - 0.04, h, az ? rim : d - 0.04,
+        ax * (w / 2 - rim / 2 - 0.02), h / 2, az * (d / 2 - rim / 2 - 0.02)));
+    });
+  } else if (t.machine === 'cypress') {
+    const trunk = new THREE.CylinderGeometry(0.1, 0.14, h * 0.16, 8);
+    trunk.translate(0, h * 0.08, 0);
+    parts.push(trunk);
+    for (let i = 0; i < 4; i++) {
+      const f = i / 4;
+      const cone = new THREE.CylinderGeometry((0.44 - f * 0.34) * w, (0.5 - f * 0.3) * w, h * 0.24, 12);
+      cone.translate(0, h * (0.16 + f * 0.21) + h * 0.12, 0);
+      parts.push(cone);
+    }
+  } else if (t.machine === 'palm') {
+    const seg = 5;
+    for (let i = 0; i < seg; i++) {
+      const f = i / seg;
+      const s = new THREE.CylinderGeometry(0.16, 0.2, h * 0.62 / seg + 0.04, 8);
+      s.translate(Math.sin(f * 1.5) * 0.28, h * 0.62 * (f + 0.5) / seg, 0);
+      parts.push(s);
+    }
+    const topX = Math.sin(1.5) * 0.28, topY = h * 0.62;
+    for (let i = 0; i < 7; i++) {
+      const a = (i / 7) * Math.PI * 2;
+      const frond = new THREE.SphereGeometry(0.5, 8, 6);
+      frond.scale(1.9, 0.16, 0.5);
+      frond.rotateY(-a);
+      frond.translate(topX + Math.cos(a) * 1.15, topY + h * 0.1 - (i % 2) * 0.18, Math.sin(a) * 1.15);
+      parts.push(frond);
+    }
+    parts.push(boxAt(0.5, 0.24, 0.5, topX, topY, 0));
+  } else if (t.machine === 'parterre') {
+    parts.push(boxAt(w - 0.04, h * 0.5, d - 0.04, 0, h * 0.25, 0));
+    const cells = 3;
+    for (let i = 0; i < cells; i++) {
+      for (let j = 0; j < cells; j++) {
+        const x = -w / 2 + (i + 0.5) * (w / cells);
+        const z = -d / 2 + (j + 0.5) * (d / cells);
+        parts.push(boxAt(w / cells - 0.5, h * 0.8, d / cells - 0.5, x, h * 0.4, z));
+        if ((i + j) % 2 === 0) {
+          const bud = new THREE.SphereGeometry(0.3, 8, 6);
+          bud.scale(1, 0.7, 1);
+          bud.translate(x, h * 0.8 + 0.14, z);
+          parts.push(bud);
+        }
+      }
+    }
+  } else if (t.machine === 'glasstower') {
+    /* A whole tower in one piece: core, curtain wall, floor bands, crown. */
+    /* glazing set back behind its mullions, so the facade catches light */
+    parts.push(boxAt(w - 0.9, h, d - 0.9, 0, h / 2, 0));
+    const bands = Math.round(h / BRICK_H);
+    for (let i = 1; i < bands; i++) {
+      parts.push(boxAt(w - 0.02, 0.18, d - 0.02, 0, i * (h / bands), 0));
+    }
+    /* corner piers and intermediate mullions on all four faces */
+    [-1, 1].forEach((k) => {
+      [-1, 1].forEach((j) => {
+        parts.push(boxAt(0.55, h, 0.55, k * (w / 2 - 0.28), h / 2, j * (d / 2 - 0.28)));
+      });
+      parts.push(boxAt(0.26, h, d - 1.1, k * (w / 2 - 0.13), h / 2, 0));
+      parts.push(boxAt(w - 1.1, h, 0.26, 0, h / 2, k * (d / 2 - 0.13)));
+      for (let m = 1; m < 4; m++) {
+        const o = -w / 2 + m * (w / 4);
+        parts.push(boxAt(0.2, h, 0.34, o, h / 2, k * (d / 2 - 0.17)));
+        parts.push(boxAt(0.34, h, 0.2, k * (w / 2 - 0.17), h / 2, o));
+      }
+    });
+    parts.push(boxAt(w + 0.2, BRICK_H * 0.4, d + 0.2, 0, h - BRICK_H * 0.2, 0));
+    parts.push(boxAt(w - 2.4, BRICK_H * 0.7, d - 2.4, 0, h + BRICK_H * 0.35, 0));
+  } else if (t.machine === 'canopy') {
+    const postH = h - BRICK_H * 1.2, inset = w / 2 - 0.7;
+    [[-inset, -inset], [inset, -inset], [-inset, inset], [inset, inset]].forEach(([x, z]) => {
+      const p = new THREE.CylinderGeometry(0.16, 0.2, postH, 10);
+      p.translate(x, postH / 2, z);
+      parts.push(p);
+    });
+    parts.push(boxAt(w - 0.4, 0.22, d - 0.4, 0, postH + 0.11, 0));
+    /* A shallow camber, not an arc. The first version lifted three quarters of
+       a brick and a row of them read as a white slide across the district. */
+    const ribs = 9;
+    for (let i = 0; i < ribs; i++) {
+      const f = (i + 0.5) / ribs;
+      const lift = Math.sin(f * Math.PI) * BRICK_H * 0.22;
+      parts.push(boxAt(w - 0.3, 0.18, d / ribs + 0.02, 0, postH + 0.28 + lift, -d / 2 + f * d));
+    }
+  } else if (t.machine === 'plaza') {
+    parts.push(boxAt(w - 0.04, h * 0.7, d - 0.04, 0, h * 0.35, 0));
+    const cells = 4;
+    for (let i = 0; i < cells; i++) {
+      for (let j = 0; j < cells; j++) {
+        if ((i + j) % 2) continue;
+        parts.push(boxAt(w / cells - 0.16, h, d / cells - 0.16,
+          -w / 2 + (i + 0.5) * (w / cells), h * 0.5, -d / 2 + (j + 0.5) * (d / cells)));
+      }
+    }
+  } else if (t.machine === 'hvac') {
+    parts.push(boxAt(w - 0.2, h * 0.2, d - 0.2, 0, h * 0.1, 0));
+    parts.push(boxAt(w * 0.5, h * 0.8, d * 0.42, -w * 0.2, h * 0.5, -d * 0.2));
+    parts.push(boxAt(w * 0.3, h * 0.55, d * 0.3, w * 0.26, h * 0.38, d * 0.22));
+    const fan = new THREE.CylinderGeometry(w * 0.16, w * 0.16, h * 0.3, 12);
+    fan.translate(w * 0.26, h * 0.8, -d * 0.24);
+    parts.push(fan);
+    for (let i = 0; i < 4; i++) {
+      parts.push(boxAt(w * 0.5, 0.08, 0.09, -w * 0.2, h * 0.28 + i * h * 0.13, -d * 0.42));
+    }
+  } else if (t.machine === 'antenna') {
+    const mast = new THREE.CylinderGeometry(0.05, 0.13, h, 8);
+    mast.translate(0, h / 2, 0);
+    parts.push(mast);
+    parts.push(boxAt(0.7, 0.24, 0.7, 0, 0.12, 0));
+    [0.3, 0.55, 0.78].forEach((f) => parts.push(boxAt(0.5, 0.09, 0.5, 0, h * f, 0)));
+    const lamp = new THREE.SphereGeometry(0.11, 8, 6);
+    lamp.translate(0, h - 0.1, 0);
+    parts.push(lamp);
+  } else if (t.machine === 'shopfront') {
+    const th = w - 0.06;
+    parts.push(boxAt(th, h, d - 0.02, 0, h / 2, 0));
+    /* recessed window and a striped awning over the pavement */
+    parts.push(boxAt(th + 0.16, h * 0.42, d - 1.1, 0, h * 0.34, 0));
+    const ribs = 7;
+    for (let i = 0; i < ribs; i++) {
+      const f = (i + 0.5) / ribs;
+      parts.push(boxAt(1.5, 0.16, (d - 0.6) / ribs + 0.02, th / 2 + 0.6, h * 0.72, -d / 2 + 0.3 + f * (d - 0.6)));
+    }
+    parts.push(boxAt(1.7, 0.2, d - 0.4, th / 2 + 0.7, h * 0.7, 0));
+    parts.push(boxAt(th + 0.1, 0.22, d - 0.02, 0, h - 0.11, 0));
+  } else if (t.machine === 'gopuram') {
+    /* A tapering stack of tiers over a gate, each tier set back and ridged,
+       crowned with a barrel vault and pot finials — the tallest thing in a
+       temple city and the reason it reads as one from a distance. */
+    const baseH = h * 0.22;
+    parts.push(boxAt(w - 0.04, baseH, d - 0.04, 0, baseH / 2, 0));
+    // the gate opening, cut by building the jambs rather than the whole wall
+    parts.push(boxAt(w * 0.26, baseH, d - 0.04, -w * 0.37, baseH / 2, 0));
+    parts.push(boxAt(w * 0.26, baseH, d - 0.04, w * 0.37, baseH / 2, 0));
+    parts.push(boxAt(w - 0.04, baseH * 0.28, d - 0.04, 0, baseH * 0.86, 0));
+    const tiers = 7, topY = h * 0.9, span = topY - baseH;
+    for (let i = 0; i < tiers; i++) {
+      const f = i / tiers;
+      const sw = (w - 0.04) * (1 - f * 0.62);
+      const sd = (d - 0.04) * (1 - f * 0.55);
+      const y = baseH + f * span;
+      const th = span / tiers;
+      parts.push(boxAt(sw, th * 0.78, sd, 0, y + th * 0.39, 0));
+      parts.push(boxAt(sw + 0.34, th * 0.2, sd + 0.34, 0, y + th * 0.88, 0));
+      // little shrine cells along the front of every tier
+      const cells = Math.max(2, 5 - i);
+      for (let c = 0; c < cells; c++) {
+        const cx = -sw / 2 + (c + 0.5) * (sw / cells);
+        parts.push(boxAt(sw / cells * 0.5, th * 0.42, 0.3, cx, y + th * 0.4, sd / 2 + 0.1));
+        parts.push(boxAt(sw / cells * 0.5, th * 0.42, 0.3, cx, y + th * 0.4, -sd / 2 - 0.1));
+      }
+    }
+    // the barrel-vaulted crown
+    const crownW = (w - 0.04) * 0.4, crownD = (d - 0.04) * 0.48;
+    const ribs = 7, crownH = h - topY;
+    for (let i = 0; i < ribs; i++) {
+      const f = (i + 0.5) / ribs;
+      const lift = Math.sin(f * Math.PI) * crownH * 0.7;
+      parts.push(boxAt(crownW, crownH * 0.3 + lift, crownD / ribs + 0.02, 0, topY + (crownH * 0.3 + lift) / 2, -crownD / 2 + f * crownD));
+    }
+    for (const kx of [-1, 0, 1]) {
+      parts.push(latheOf(FINIAL_PROFILE, 0.26, crownH * 0.5, 12, topY + crownH * 0.5));
+      parts.push(boxAt(0.36, crownH * 0.5, 0.36, kx * crownW * 0.42, topY + crownH * 0.5, 0));
+    }
+  } else if (t.machine === 'shikhara') {
+    /* A curvilinear spire: square courses shrinking on a curve, ribbed at the
+       corners, capped with the ribbed disc and pot that finish one. */
+    const baseH = h * 0.24;
+    parts.push(boxAt(w - 0.04, baseH, d - 0.04, 0, baseH / 2, 0));
+    parts.push(boxAt(w + 0.24, baseH * 0.16, d + 0.24, 0, baseH * 0.92, 0));
+    const courses = 14, towerH = h * 0.56;
+    for (let i = 0; i < courses; i++) {
+      const f = i / courses;
+      const curve = Math.pow(f, 1.45);            // slow at the base, fast at the top
+      const s = 1 - curve * 0.74;
+      const y = baseH + f * towerH;
+      parts.push(boxAt((w - 0.1) * s, towerH / courses + 0.03, (d - 0.1) * s, 0, y + towerH / courses / 2, 0));
+      // corner ribs, which is what makes a shikhara read as curved not stepped
+      for (const kx of [-1, 1]) {
+        for (const kz of [-1, 1]) {
+          parts.push(boxAt(0.3, towerH / courses + 0.05, 0.3,
+            kx * (w - 0.1) * s * 0.42, y + towerH / courses / 2, kz * (d - 0.1) * s * 0.42));
+        }
+      }
+    }
+    const capY = baseH + towerH;
+    const amalaka = new THREE.CylinderGeometry(w * 0.22, w * 0.19, h * 0.07, 16);
+    amalaka.translate(0, capY + h * 0.035, 0);
+    parts.push(amalaka);
+    parts.push(ringOf(w * 0.23, 0.13, capY, h * 0.07, 16));
+    parts.push(latheOf(FINIAL_PROFILE, w * 0.13, h - capY - h * 0.07, 14, capY + h * 0.07));
+  } else if (t.machine === 'mandapa') {
+    /* An open pillared hall: a grid of columns on a plinth under a flat,
+       corbelled roof. Placed in a row it becomes a colonnaded street. */
+    const plinth = BRICK_H * 0.7;
+    parts.push(boxAt(w - 0.04, plinth, d - 0.04, 0, plinth / 2, 0));
+    parts.push(boxAt(w + 0.2, plinth * 0.3, d + 0.2, 0, plinth * 0.15, 0));
+    const colH = h - plinth - BRICK_H * 1.3;
+    const n = 3;
+    for (let i = 0; i < n; i++) {
+      for (let j = 0; j < n; j++) {
+        if (i === 1 && j === 1) continue;         // leave the centre open
+        const x = -(w - 2.6) / 2 + i * ((w - 2.6) / (n - 1));
+        const z = -(d - 2.6) / 2 + j * ((d - 2.6) / (n - 1));
+        parts.push(columnAt(0.32, colH, plinth, x, z));
+        // corbel brackets under the beam
+        parts.push(boxAt(0.9, 0.22, 0.26, x, plinth + colH - 0.11, z));
+        parts.push(boxAt(0.26, 0.22, 0.9, x, plinth + colH - 0.11, z));
+      }
+    }
+    const beam = plinth + colH;
+    parts.push(boxAt(w - 0.04, BRICK_H * 0.5, d - 0.04, 0, beam + BRICK_H * 0.25, 0));
+    parts.push(boxAt(w + 0.5, BRICK_H * 0.3, d + 0.5, 0, beam + BRICK_H * 0.65, 0));
+    parts.push(boxAt(w - 1.6, BRICK_H * 0.3, d - 1.6, 0, beam + BRICK_H * 0.95, 0));
+  } else if (t.machine === 'tank') {
+    /* A stepped bathing tank: a square of descending treads with water at the
+       bottom. Wider and shallower than the stepwell, and it holds water. */
+    const treads = 4;
+    for (let i = 0; i < treads; i++) {
+      const f = i / treads;
+      const side = (w - 0.04) * (1 - f * 0.22);
+      const wall = side * 0.11 + 0.24;
+      const height = h * (1 - f * 0.26);
+      [[1, 0], [-1, 0], [0, 1], [0, -1]].forEach(([ax, az]) => {
+        parts.push(boxAt(ax ? wall : side, height, az ? wall : side,
+          ax * (side / 2 - wall / 2), height / 2, az * (side / 2 - wall / 2)));
+      });
+    }
+    parts.push(boxAt(w * 0.42, h * 0.3, d * 0.42, 0, h * 0.15, 0));
+    // a shrine on a pillar in the middle, the way these tanks usually have
+    parts.push(boxAt(0.5, h * 0.8, 0.5, 0, h * 0.4, 0));
+    parts.push(boxAt(1.5, h * 0.16, 1.5, 0, h * 0.86, 0));
+    parts.push(latheOf(DOME_PROFILE, 0.7, h * 0.4, 14, h * 0.94));
+  } else if (t.machine === 'haveli') {
+    /* A townhouse front: arched ground floor, a projecting carved balcony
+       above, a bracketed eave. A row of them is a heritage street. */
+    const th = w - 0.06;
+    parts.push(boxAt(th, h, d - 0.02, 0, h / 2, 0));
+    const archH = h * 0.3;
+    for (let i = 0; i < 2; i++) {
+      const z = -d / 2 + (i + 0.5) * (d / 2);
+      parts.push(boxAt(th + 0.14, archH * 0.7, d / 2 - 0.8, 0, archH * 0.45, z));
+    }
+    // the jharokha: a bay window on brackets
+    parts.push(boxAt(th + 1.0, h * 0.26, d * 0.55, th * 0.5, h * 0.55, 0));
+    for (const oz of [-1, 1]) {
+      parts.push(boxAt(0.8, 0.26, 0.26, th * 0.5, h * 0.41, oz * d * 0.22));
+    }
+    const bal = 5;
+    for (let i = 0; i < bal; i++) {
+      const z = -d * 0.27 + (i + 0.5) * (d * 0.54 / bal);
+      parts.push(boxAt(0.16, h * 0.14, 0.16, th * 0.5 + 0.45, h * 0.72, z));
+    }
+    parts.push(boxAt(th + 1.2, 0.22, d * 0.6, th * 0.5, h * 0.8, 0));
+    // bracketed eave and a parapet
+    for (let i = 0; i < 4; i++) {
+      const z = -d / 2 + (i + 0.5) * (d / 4);
+      parts.push(boxAt(th + 0.7, 0.2, 0.24, th * 0.35, h * 0.9, z));
+    }
+    parts.push(boxAt(th + 0.9, 0.28, d - 0.02, th * 0.2, h - 0.14, 0));
+  } else if (t.machine === 'victory') {
+    /* A free-standing commemorative tower: a fluted shaft in bands, a gallery
+       partway up, an open cupola on top. */
+    const baseH = h * 0.1;
+    parts.push(boxAt(w - 0.02, baseH, d - 0.02, 0, baseH / 2, 0));
+    parts.push(boxAt(w + 0.4, baseH * 0.3, d + 0.4, 0, baseH * 0.15, 0));
+    const shaftH = h * 0.66, bands = 6;
+    for (let i = 0; i < bands; i++) {
+      const f = i / bands;
+      const r = (w / 2 - 0.3) * (1 - f * 0.28);
+      const seg = new THREE.CylinderGeometry(r * 0.94, r, shaftH / bands, 12);
+      seg.translate(0, baseH + f * shaftH + shaftH / bands / 2, 0);
+      parts.push(seg);
+      parts.push(ringOf(r + 0.1, 0.14, baseH + f * shaftH, 0.22, 12));
+      // niches around each band
+      for (let k = 0; k < 6; k++) {
+        const a = (k / 6) * Math.PI * 2 + f;
+        parts.push(boxAt(0.34, shaftH / bands * 0.45, 0.34,
+          Math.cos(a) * r, baseH + f * shaftH + shaftH / bands * 0.5, Math.sin(a) * r));
+      }
+    }
+    const galY = baseH + shaftH;
+    parts.push(ringOf(w * 0.42, 0.2, galY, 0.4, 16));
+    for (let k = 0; k < 12; k++) {
+      const a = (k / 12) * Math.PI * 2;
+      parts.push(boxAt(0.14, 0.5, 0.14, Math.cos(a) * w * 0.42, galY + 0.4, Math.sin(a) * w * 0.42));
+    }
+    parts.push(boxAt(w * 0.9, 0.24, d * 0.9, 0, galY + 0.95, 0));
+    const capH = h - galY - 1.1;
+    parts.push(latheOf(DOME_PROFILE, w * 0.3, capH * 0.7, 16, galY + 1.1));
+    parts.push(latheOf(FINIAL_PROFILE, 0.18, capH * 0.3, 12, galY + 1.1 + capH * 0.7));
+  } else if (t.machine === 'stall') {
+    /* A bazaar stall: a counter, a sloping cloth awning on poles, and goods
+       piled on top. Placed in a row it makes a market street. */
+    parts.push(boxAt(w - 0.4, h * 0.34, d - 0.6, 0, h * 0.17, 0));
+    parts.push(boxAt(w - 0.1, 0.2, d - 0.3, 0, h * 0.36, 0));
+    for (const kx of [-1, 1]) {
+      for (const kz of [-1, 1]) {
+        const pole = new THREE.CylinderGeometry(0.11, 0.13, h * 0.9, 8);
+        pole.translate(kx * (w / 2 - 0.35), h * 0.45, kz * (d / 2 - 0.35));
+        parts.push(pole);
+      }
+    }
+    const ribs = 6;
+    for (let i = 0; i < ribs; i++) {
+      const f = (i + 0.5) / ribs;
+      parts.push(boxAt(w + 0.5, 0.16, (d + 0.5) / ribs + 0.02, 0, h * 0.9 + f * h * 0.12, -d / 2 + f * d));
+    }
+    // goods on the counter
+    for (let i = 0; i < 3; i++) {
+      const s = new THREE.SphereGeometry(0.3, 8, 6);
+      s.scale(1, 0.7, 1);
+      s.translate(-w * 0.26 + i * (w * 0.26), h * 0.44, 0);
+      parts.push(s);
+    }
+    parts.push(boxAt(w * 0.34, h * 0.16, d * 0.3, w * 0.2, h * 0.44, -d * 0.2));
+  } else if (t.machine === 'ratha') {
+    /* A festival temple chariot: a wheeled platform under a tiered tower. */
+    const wheelR = h * 0.11;
+    for (const kx of [-1, 1]) {
+      for (const kz of [-1, 1]) {
+        const wheel = new THREE.CylinderGeometry(wheelR, wheelR, 0.22, 14);
+        wheel.rotateZ(Math.PI / 2);
+        wheel.translate(kx * (w / 2 - 0.1), wheelR, kz * (d / 2 - 0.8));
+        parts.push(wheel);
+        for (let k = 0; k < 6; k++) {
+          const a = (k / 6) * Math.PI;
+          parts.push(boxAt(0.24, wheelR * 1.7, 0.12, kx * (w / 2 - 0.1), wheelR, kz * (d / 2 - 0.8)));
+        }
+      }
+    }
+    const deck = wheelR * 2;
+    parts.push(boxAt(w - 0.1, BRICK_H * 0.5, d - 0.1, 0, deck + BRICK_H * 0.25, 0));
+    parts.push(boxAt(w + 0.3, 0.2, d + 0.3, 0, deck + BRICK_H * 0.55, 0));
+    const towerY = deck + BRICK_H * 0.65, towerH = h - towerY - BRICK_H;
+    const tiers = 5;
+    for (let i = 0; i < tiers; i++) {
+      const f = i / tiers, s = 1 - f * 0.6;
+      parts.push(boxAt((w - 0.3) * s, towerH / tiers * 0.8, (d - 0.3) * s, 0, towerY + f * towerH + towerH / tiers * 0.4, 0));
+      parts.push(boxAt((w - 0.3) * s + 0.3, towerH / tiers * 0.2, (d - 0.3) * s + 0.3, 0, towerY + f * towerH + towerH / tiers * 0.9, 0));
+    }
+    parts.push(latheOf(FINIAL_PROFILE, 0.24, BRICK_H, 12, towerY + towerH));
+    // the draw pole at the front
+    parts.push(boxAt(0.24, 0.24, d * 0.5, 0, deck + 0.2, d * 0.7));
   } else if (t.wedge) {
     const b = gbuilder(), V = (x, y, z) => new THREE.Vector3(x, y, z);
     const x0 = -w / 2, x1 = w / 2, z0 = -d / 2, z1 = d / 2;
@@ -14519,11 +15028,14 @@ const SCENES = {
   sunny:  { sky: ['#5fb6ef', '#a6dcf7', '#dff2fb'], ground: 0x74ad42,
             grid: 'rgba(46,74,30,0.16)', grid10: 'rgba(40,66,26,0.24)',
             hemiSky: 0xe4f4ff, hemiGround: 0x7d9a58, hemi: 0.7, sun: 0.95, sunCol: 0xfff2d4,
-            fogNear: 110, fogFar: 380, ui: 'light', clouds: true },
+            /* pushed back so a full-size city or palace compound does not
+               fade into haze halfway across — the old 110 washed out anything
+               larger than a starter plot */
+            fogNear: 220, fogFar: 900, ui: 'light', clouds: true },
   studio: { bg: 0xffffff, ground: 0xeef1f6,
             grid: 'rgba(70,95,130,0.16)', grid10: 'rgba(60,85,120,0.30)',
             hemiSky: 0xffffff, hemiGround: 0xc8ced8, hemi: 0.72, sun: 0.85, sunCol: 0xffffff,
-            fogNear: 70, fogFar: 260, ui: 'light', clouds: false },
+            fogNear: 160, fogFar: 620, ui: 'light', clouds: false },
   night:  { sky: ['#0a1024', '#132648', '#1d3557'], ground: 0x1d2a3a,
             grid: 'rgba(128,150,182,0.16)', grid10: 'rgba(150,176,214,0.2)',
             hemiSky: 0x3c5f95, hemiGround: 0x0c1424, hemi: 0.4, sun: 0.22, sunCol: 0xa9c4ff,
@@ -15048,6 +15560,7 @@ function worldConnectors(t, matrix) {
 }
 
 function addBrick(data, record) {
+  if (batchGroup) unbatchShowcase();
   const t = TYPE_BY_ID[data.typeId];
   if (!t) return null;
   const mesh = new THREE.Mesh(geomFor(t), matFor(t.fixedColor || data.color, t.fixedAlpha != null ? t.fixedAlpha : (t.fixedColor ? null : data.alpha)));
@@ -15141,7 +15654,72 @@ function removeBrick(id, record) {
 }
 const serialize = b => ({ id: b.id, typeId: b.typeId, color: b.color, alpha: b.alpha, p: b.p, q: b.q, on: b.on, doorOpen: !!b.doorOpen, use: b.use || '' });
 
+/* ------------------------------------------------- showcase batching */
+/* Every brick is its own mesh, so a 5,000-brick world is 5,000 draw calls —
+   which is the real ceiling on how large a showcase world can be, not the
+   triangle count. A showcase world is read-only until someone copies it, so
+   while it is locked everything static is merged into one mesh per colour:
+   identical pixels, roughly thirty draw calls. Anything with behaviour —
+   vehicles, doors, lamps, machinery — keeps its own mesh so Play still works.
+   The per-brick records are untouched, so copy, export and inspect are too. */
+let batchGroup = null;
+const BATCH_MIN = 400;
+
+function canBatch(b) {
+  const t = TYPE_BY_ID[b.typeId];
+  if (!t || b.wheels || b.extras) return false;
+  if (b.typeId === 'door1x4' || b.typeId === 'glassdoor1x4') return false;
+  /* Road and rail carry a town tag but are painted surfaces — the path graph
+     is built from the brick records, not the meshes. Only the things that
+     actually move or change appearance have to stay on their own. */
+  const town = t.town;
+  if (!town) return true;
+  return !(town.driver || town.lamp || town.sw || town.wire ||
+           town.supply || town.solar || town.person || town.car);
+}
+
+function unbatchShowcase() {
+  if (batchGroup) {
+    batchGroup.children.forEach(m => m.geometry.dispose());
+    world3.remove(batchGroup);
+    batchGroup = null;
+  }
+  bricks.forEach(b => { if (b.mesh) b.mesh.visible = true; });
+}
+
+function batchShowcase() {
+  unbatchShowcase();
+  if (!showcaseLocked || bricks.length < BATCH_MIN) return;
+  const groups = new Map();
+  let merged = 0;
+  bricks.forEach(b => {
+    if (!canBatch(b) || !b.mesh) return;
+    const t = TYPE_BY_ID[b.typeId];
+    const hex = t.fixedColor || b.color;
+    const alpha = t.fixedAlpha != null ? t.fixedAlpha : (t.fixedColor ? null : b.alpha);
+    const key = hex + '|' + (alpha || 1);
+    const g = geomFor(t).clone();
+    b.mesh.updateMatrixWorld(true);
+    g.applyMatrix4(b.mesh.matrixWorld);
+    if (!groups.has(key)) groups.set(key, { hex, alpha, list: [] });
+    groups.get(key).list.push(g);
+    b.mesh.visible = false;
+    merged++;
+  });
+  if (!merged) return;
+  batchGroup = new THREE.Group();
+  groups.forEach(({ hex, alpha, list }) => {
+    const mesh = new THREE.Mesh(mergeGeoms(list), matFor(hex, alpha));
+    mesh.castShadow = true; mesh.receiveShadow = true;
+    batchGroup.add(mesh);
+    list.forEach(g => g.dispose());
+  });
+  world3.add(batchGroup);
+  invalidate();
+}
+
 function clearAll(record) {
+  unbatchShowcase();
   clearSelection();
   if (record && bricks.length) pushUndo({ op: 'bulk', before: bricks.map(serialize), after: [] });
   bricks.forEach(b => {
@@ -16144,6 +16722,7 @@ function setShowcaseMode(locked) {
   // This API is intentionally idempotent. The host UI may repeat state syncs;
   // rebuilding physics on an unchanged value resets every moving vehicle.
   if (lockChanged && mode === 'play') buildPhysics();
+  if (lockChanged) { if (showcaseLocked) batchShowcase(); else unbatchShowcase(); }
 }
 function bakeCurrent() {
   bricks.forEach(b => { b.p = b.mesh.position.toArray(); b.q = b.mesh.quaternion.toArray(); });
@@ -16502,7 +17081,7 @@ function registerWorldTypes(d) {
   return true;
 }
 function safeWorldBricks(d) {
-  if(!d||d.app!=='brickforge'||!Array.isArray(d.bricks)||d.bricks.length>5000)return null;
+  if(!d||d.app!=='brickforge'||!Array.isArray(d.bricks)||d.bricks.length>15000)return null;
   if(!registerWorldTypes(d))return null;
   const safe=[];
   for(const raw of d.bricks){
@@ -17314,6 +17893,7 @@ function setDemoCity(name) {
   activeDemoCity=next;
   demoSnapshot=(next==='indian'?indianSnapshot:next==='city2'?city2Snapshot:city1Snapshot).map(b=>Object.assign({},b,{p:b.p.slice(),q:b.q.slice()}));
   showcaseLocked=wasLocked;
+  batchShowcase();
   if (wasPlay) setMode('play');
   setView('city');
   showExperience(next==='indian'?'Indian Heritage City loaded — explore the palace, temples, bazaar, havelis, stepwell and ghats':next==='city2'?'Metro City 2 loaded — explore the skyline, park, harbour and detailed buildings':'Metro City 1 loaded — the original metropolitan showcase');
@@ -17329,11 +17909,12 @@ function loadShowcaseWorld(data, name) {
     if(wasPlay)setMode('build');
     clearAll(false); safeBricks.forEach(b=>addBrick(b,false));
     activeDemoCity=String(name||'showcase').slice(0,32);
-    externalWorldTitle=activeDemoCity==='royal'?'Royal Palace Complex':activeDemoCity==='skyrail'?'Skyrail District':'Showcase World';
+    externalWorldTitle=activeDemoCity==='royal'?'Royal Palace Complex':activeDemoCity==='skyrail'?'Skyrail District':activeDemoCity==='indian'?'Indian Heritage City':'Showcase World';
     const xs=safeBricks.map(b=>b.p[0]), ys=safeBricks.map(b=>b.p[1]+(TYPE_BY_ID[b.typeId]?.h||0)), zs=safeBricks.map(b=>b.p[2]);
     externalWorldBounds={minX:Math.min(...xs),maxX:Math.max(...xs),minZ:Math.min(...zs),maxZ:Math.max(...zs),maxY:Math.max(...ys)};
     demoSnapshot=safeBricks.map(b=>Object.assign({},b,{p:b.p.slice(),q:b.q.slice()}));
     showcaseLocked=wasLocked;
+    batchShowcase();
     if(wasPlay)setMode('play');
     setView('city');
     showExperience(externalWorldTitle+' loaded — tour it, walk through it or copy every piece to My Town');

@@ -23,10 +23,13 @@ export const towns = sqliteTable(
     visibility: text("visibility").notNull().default("private"),
     createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
     updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+    /* for rate limiting only — a one-way hash, never the address itself */
+    ipHash: text("ip_hash"),
   },
   (table) => [
     index("towns_owner_idx").on(table.ownerId),
     index("towns_public_idx").on(table.visibility, table.updatedAt),
+    index("towns_ip_idx").on(table.ipHash, table.createdAt),
   ],
 );
 
@@ -40,4 +43,28 @@ export const townLikes = sqliteTable(
     createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
   },
   (table) => [index("town_likes_town_idx").on(table.townId)],
+);
+
+/**
+ * A note a player left while playing. Deliberately shallow: one row per note,
+ * with whatever the game knew at the time in `context`, so nobody has to
+ * remember which mode they were in or how far they had got.
+ */
+export const feedback = sqliteTable(
+  "feedback",
+  {
+    id: text("id").primaryKey(),
+    game: text("game").notNull(),
+    rating: integer("rating"),
+    message: text("message").notNull(),
+    context: text("context"),
+    playerId: text("player_id"),
+    createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+    /* for rate limiting only — a one-way hash, never the address itself */
+    ipHash: text("ip_hash"),
+  },
+  (table) => [
+    index("feedback_recent_idx").on(table.createdAt),
+    index("feedback_ip_idx").on(table.ipHash, table.createdAt),
+  ],
 );
