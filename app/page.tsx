@@ -20,11 +20,11 @@ const missions = [
 ] as const;
 const makeVoterId = () => `v${Date.now().toString(36)}${Math.random().toString(36).slice(2,12)}`;
 const showcaseWorlds = [
-  { id:"royal", title:"Royal Palace Complex", era:"Buildable heritage landmark", image:"/shots/royal-palace.webp", description:"A detailed walled palace with domes, chhatris, carved screens, courtyards, gardens, a stepwell and market awnings.", playable:true, accent:"saffron" },
-  { id:"skyrail", title:"Skyrail District", era:"Modern starter district", image:"/shots/skyrail-district.webp", description:"A glass-tower neighbourhood with streets, landscaped park, homes, station and a working elevated passenger railway.", playable:true, accent:"blue" },
+  { id:"royal", title:"Royal Palace Complex", era:"Buildable heritage landmark", image:"/shots/royal-palace.webp", description:"A fortified compound with corner minarets, a charbagh garden, a domed palace, a stepwell, a bazaar street, a durbar hall and a lake pavilion.", playable:true, accent:"saffron" },
+  { id:"skyrail", title:"Skyrail District", era:"Modern starter district", image:"/shots/skyrail-district.webp", description:"Sixty-four blocks of city: a downtown of glass towers, a park with a lake, a quarter of homes, a civic square, and the railway on piers with two stations.", playable:true, accent:"blue" },
   { id:"city1", title:"Metro City 1", era:"Modern classic", image:"/shots/metro-city-1.webp", description:"The original BrickLab metropolis with long avenues, neighbourhoods, public services and live transport.", playable:true, accent:"blue" },
   { id:"city2", title:"Metro City 2", era:"Modern waterfront", image:"/shots/metro-city-2.webp", description:"A park-centred skyline with an elevated railway, harbour, detailed homes, hotel and restaurant.", playable:true, accent:"red" },
-  { id:"indian", title:"Indian Heritage City", era:"Imperial palaces & bazaars", image:"/shots/indian-heritage.webp", description:"Explore a vast royal capital with monumental palaces, temples, processional elephants, horses, gardens, havelis and bazaars.", playable:true, accent:"saffron" },
+  { id:"indian", title:"Indian Heritage City", era:"Imperial palaces & bazaars", image:"/shots/indian-heritage.webp", description:"A walled capital of 240 studs: a temple precinct behind four gopurams, a domed palace, a citadel on a mound, a bazaar, a haveli quarter, ghats and a lake palace.", playable:true, accent:"saffron" },
   { id:"japanese", title:"Japanese Castle Town", era:"Castles & gardens", image:"", description:"Tiered castle roofs, cherry gardens, bridges, mountain streets and traditional homes.", playable:false, accent:"pink" },
   { id:"chinese", title:"Chinese Walled City", era:"Gates & lanterns", image:"", description:"A fortified city of red gates, tiled roofs, lantern streets, gardens and defensive walls.", playable:false, accent:"gold" },
   { id:"medieval", title:"European Medieval City", era:"Castles & guilds", image:"", description:"Stone castles, towers, bridges, workshops, a market square and winding town lanes.", playable:false, accent:"green" },
@@ -40,7 +40,7 @@ const demoDetails: Record<DemoWorld,{title:string;selector:string;summary:string
   skyrail:{title:"Skyrail District",selector:"District · Skyrail",summary:"A compact 275-piece modern district with glass towers, connected streets, landscaping, homes, station platforms and an elevated working train.",copyLabel:"Skyrail District",rail:true},
   city1:{title:"Metro City 1",selector:"City 1 · Classic",summary:"The original large BrickLab metropolis with long avenues, services and working systems.",copyLabel:"City 1",rail:true},
   city2:{title:"Metro City 2",selector:"City 2 · Waterfront",summary:"A separate concept-inspired world with a central park, dense skyline, waterfront neighbourhood and elevated Metro.",copyLabel:"City 2",rail:true},
-  indian:{title:"Indian Heritage City",selector:"Indian · Heritage",summary:"A vast walkable royal capital with an immense five-part Imperial Palace, Garden and Lake Palaces, temples, bazaars, havelis and ceremonial elephant and horse processions.",copyLabel:"Heritage City",rail:false},
+  indian:{title:"Indian Heritage City",selector:"Indian · Heritage",summary:"A walled capital laid out on two processional avenues: a temple precinct entered through gopurams, a domed palace, a hill citadel, a bazaar, a haveli quarter, river ghats and a lake palace, with elephants, carriages and crowds moving through it in Play.",copyLabel:"Heritage City",rail:false},
 };
 
 export default function Home() {
@@ -108,8 +108,15 @@ export default function Home() {
   };
   const loadDemoWorld = async (city: DemoWorld, forge = api()) => {
     if (!forge) return false;
-    if (city === "royal" || city === "skyrail") {
-      const file = city === "royal" ? "/worlds/royal-palace.json" : "/worlds/skyrail-district.json";
+    /* Indian Heritage joined the JSON worlds when it outgrew what a hand-written
+       generator inside the builder could hold. */
+    const files: Partial<Record<DemoWorld, string>> = {
+      royal: "/worlds/royal-palace.json",
+      skyrail: "/worlds/skyrail-district.json",
+      indian: "/worlds/indian-heritage-city.json",
+    };
+    const file = files[city];
+    if (file) {
       const response = await fetch(file);
       if (!response.ok || !forge.loadShowcaseWorld(await response.json(), city)) return false;
     } else forge.setDemoCity(city);
