@@ -700,7 +700,7 @@ function drawRpgHud() {
   document.getElementById('rpgLevel').textContent = 'Builder level ' + rpg.level;
   document.getElementById('rpgCoins').textContent = rpg.coins + ' frontier marks';
   const tier = SETTLEMENT_TIERS[settlementTier()];
-  document.getElementById('rpgSettlement').textContent = tier.name;
+  document.getElementById('rpgSettlement').textContent = tier.name + (raid.active ? ' · under raid' : '');
   document.getElementById('rpgXp').style.width = Math.min(100, rpg.xp / xpNeeded(rpg.level) * 100) + '%';
   document.getElementById('rpgQuest').textContent = quest ? quest.title : 'Frontier founder';
   document.getElementById('rpgQuestProgress').textContent = quest
@@ -1005,6 +1005,7 @@ function placeBlock() {
   if (setBlock(x, y, z, id)) {
     take(id, 1);
     rpg.placed = (rpg.placed || 0) + 1;
+    noteSettlementBlock(x, z);
     questEvent('place', id, 1);
     addXp(1);
   }
@@ -1059,7 +1060,7 @@ function showTitle() {
           <p class="title-kicker">Explore · Build · Defend · Grow</p>
           <h1>A wild world.<em>Your living frontier.</em></h1>
           <p class="title-lede">Gather scarce materials, build a settlement with Mira, Arun and Leela, complete story quests and defend everything you create after nightfall.</p>
-          <div class="title-pills"><span>Finite wilderness</span><span>Story quests</span><span>Settler jobs</span><span>Creatures & caves</span><span>Creative flight</span></div>
+          <div class="title-pills"><span>Finite wilderness</span><span>Story quests</span><span>Settler jobs</span><span>Creatures & caves</span><span>Night raids</span><span>Creative flight</span></div>
         </div>
         <div class="title-art" role="img" aria-label="A colourful block-built frontier with hills and settlement towers">
           <div class="frontier-sun"></div><div class="voxel-hill hill-one"></div><div class="voxel-hill hill-two"></div>
@@ -1078,7 +1079,7 @@ function showTitle() {
             <div class="guide-step"><b>1</b><span><strong>Gather</strong><small>Mine trees, stone and rare ore.</small></span></div>
             <div class="guide-step"><b>2</b><span><strong>Build</strong><small>Turn an empty frontier into a home.</small></span></div>
             <div class="guide-step"><b>3</b><span><strong>Grow</strong><small>Help settlers and earn frontier marks.</small></span></div>
-            <div class="guide-step"><b>4</b><span><strong>Defend</strong><small>Use light and shelter to survive the night.</small></span></div>
+            <div class="guide-step"><b>4</b><span><strong>Defend</strong><small>Light the settlement before dusk, or raiders break what you built.</small></span></div>
           </div>
           <details class="control-details"><summary>View all controls</summary><div class="keys">
             <b>W A S D</b><span>Walk · hold Shift to sprint</span><b>Space</b><span>Jump or rise while flying</span>
@@ -1584,17 +1585,18 @@ function spawnSettlers() {
     // never below the waterline: on a low-lying seed all three stood on the seabed
     const y = Math.max(heightAt(x, z) + 1, SEA_LEVEL + 1);
     const group=settlerMesh(spec); group.position.set(x+.5,y,z+.5); scene.add(group);
-    settlers.push({spec,group,pos:new THREE.Vector3(x+.5,y,z+.5)});
+    settlers.push({spec,group,pos:new THREE.Vector3(x+.5,y,z+.5),health:SETTLER_HEALTH,down:false});
   });
 }
 function nearestSettler(maxDistance) {
   let nearest=null, distance=maxDistance || 4;
-  settlers.forEach((settler) => { const d=settler.pos.distanceTo(player.pos); if(d<distance){nearest=settler;distance=d;} });
+  settlers.forEach((settler) => { if(settler.down) return; const d=settler.pos.distanceTo(player.pos); if(d<distance){nearest=settler;distance=d;} });
   return nearest;
 }
 function talkToSettler(settler) {
   card.className = 'card';
   if(!settler){say('Move closer to a settler');return false;}
+  if(settler.down){say(settler.spec.name + ' was driven off in the night — they return at dawn');return false;}
   panelMode='dialogue';
   const job=SETTLEMENT_JOBS.find((item)=>item.settler===settler.spec.name);
   card.innerHTML=`
@@ -1741,6 +1743,114 @@ function removeMob(i) {
   mobs.splice(i, 1);
 }
 
+/* ---------------------------------------------------------------- raids
+   Creatures used to be a hazard to the player and nothing else: you could
+   die, but nothing you built could ever be harmed, which made "defend"
+   the one verb on the box the game did not deliver.
+
+   After dark, raiders now walk on the settlement rather than on you. They
+   chew through the blocks you placed — but only ones standing in the dark.
+   Torchlight is the wall that actually works, which is what the crafting
+   tree was pointing at all along. */
+const RAID_GRACE_TIER = 1;          // Camp is left alone; raids begin at Hamlet
+const RAID_CHEW_SECONDS = 1.8;
+const RAID_LIGHT_RADIUS = 4;        // a torch this close keeps a block safe
+const SETTLER_LIGHT_RADIUS = 5;
+const SETTLER_HEALTH = 10;
+const raid = { active: false, nights: 0, blocksLost: 0, driven: 0, warned: false };
+let wasNight = false;
+
+function noteSettlementBlock(x, z) {
+  const hub = rpg.hub && Number.isFinite(rpg.hub.n) ? rpg.hub : { x: 0, z: 0, n: 0 };
+  rpg.hub = { x: (hub.x * hub.n + x) / (hub.n + 1), z: (hub.z * hub.n + z) / (hub.n + 1), n: hub.n + 1 };
+}
+/** Where the settlement is: the middle of what you have built, or of the settlers. */
+function settlementHub() {
+  if (rpg.hub && rpg.hub.n > 0) return { x: rpg.hub.x, z: rpg.hub.z };
+  if (settlers.length) {
+    let x = 0, z = 0;
+    settlers.forEach((s) => { x += s.pos.x; z += s.pos.z; });
+    return { x: x / settlers.length, z: z / settlers.length };
+  }
+  return { x: player.pos.x, z: player.pos.z };
+}
+
+function beginRaid() {
+  raid.active = true;
+  raid.nights += 1;
+  raid.blocksLost = 0;
+  raid.driven = 0;
+  const hub = settlementHub();
+  const wanted = 2 + settlementTier();
+  let spawned = 0;
+  for (let attempt = 0; attempt < 40 && spawned < wanted; attempt++) {
+    const angle = Math.random() * Math.PI * 2;
+    const dist = 20 + Math.random() * 10;
+    const x = Math.floor(hub.x + Math.cos(angle) * dist);
+    const z = Math.floor(hub.z + Math.sin(angle) * dist);
+    if (!inTerritory(x, z)) continue;
+    const ground = surfaceHeight(x, z);
+    if (ground < 1 || ground > CHUNK_Y - 3) continue;
+    if (litNearby(x, ground + 1, z, 6)) continue;
+    const mob = spawnMob('grubling', x + 0.5, ground + 1, z + 0.5);
+    mob.raider = true;
+    mob.chew = 0;
+    spawned += 1;
+  }
+  if (spawned) say('Raiders are moving on the settlement — light it, or hold them off');
+}
+
+function endRaid() {
+  raid.active = false;
+  for (let i = mobs.length - 1; i >= 0; i--) if (mobs[i].raider) removeMob(i);
+  let returned = 0;
+  settlers.forEach((settler) => {
+    if (settler.down) { settler.down = false; settler.group.visible = true; returned += 1; }
+    settler.health = SETTLER_HEALTH;
+  });
+  if (raid.nights) {
+    if (!raid.blocksLost && !raid.driven) say('Dawn — the settlement held through the night');
+    else say('Dawn — ' + raid.blocksLost + ' block' + (raid.blocksLost === 1 ? '' : 's') + ' lost' +
+             (returned ? ' · ' + returned + ' settler' + (returned === 1 ? '' : 's') + ' back at work' : ''));
+  }
+  drawRpgHud();
+}
+
+function updateRaid(dt) {
+  const night = isNight();
+  if (night && !wasNight) { if (settlementTier() >= RAID_GRACE_TIER) beginRaid(); }
+  if (!night && wasNight && raid.active) endRaid();
+  wasNight = night;
+}
+
+/** A settler standing in the dark can be driven off until dawn. */
+function harmSettler(settler, amount) {
+  if (settler.down) return;
+  if (litNearby(Math.floor(settler.pos.x), Math.floor(settler.pos.y), Math.floor(settler.pos.z), SETTLER_LIGHT_RADIUS)) return;
+  settler.health = (settler.health === undefined ? SETTLER_HEALTH : settler.health) - amount;
+  if (settler.health <= 0) {
+    settler.down = true;
+    settler.group.visible = false;
+    raid.driven += 1;
+    say(settler.spec.name + ' was driven off — light the settlement and they return at dawn');
+    lastSettlerPrompt = '__refresh__';
+  }
+}
+
+/** A raider gnawing whatever unlit thing you built is standing in its way. */
+function chewBlock(mob, dt, x, y, z) {
+  const id = getBlock(x, y, z);
+  if (!id || !edits.get(vkey(x, y, z))) return false;      // only what the player put there
+  if (litNearby(x, y, z, RAID_LIGHT_RADIUS)) { mob.chew = 0; return false; }
+  mob.chew = (mob.chew || 0) + dt;
+  if (mob.chew < RAID_CHEW_SECONDS) return true;
+  mob.chew = 0;
+  setBlock(x, y, z, 0);
+  raid.blocksLost += 1;
+  if (raid.blocksLost === 1) say('A raider is breaking through — torches stop them');
+  return true;
+}
+
 function updateMobs(dt) {
   const p = player.pos;
   for (let i = mobs.length - 1; i >= 0; i--) {
@@ -1753,7 +1863,21 @@ function updateMobs(dt) {
 
     const toPlayer = new THREE.Vector3().subVectors(p, mob.pos);
     let wish = new THREE.Vector3();
-    if (spec.hostile && away < spec.aggro) {
+    const raiding = mob.raider && raid.active && away > 6;
+    if (raiding) {
+      const hub = settlementHub();
+      const toHub = new THREE.Vector3(hub.x - mob.pos.x, 0, hub.z - mob.pos.z);
+      if (toHub.lengthSq() > 0.4) {
+        wish.copy(toHub).normalize().multiplyScalar(spec.speed);
+        mob.group.rotation.y = Math.atan2(toHub.x, toHub.z);
+      }
+      settlers.forEach((settler) => {
+        if (!settler.down && settler.pos.distanceTo(mob.pos) < 1.8 && mob.swing <= 0) {
+          mob.swing = 1.2;
+          harmSettler(settler, 2);
+        }
+      });
+    } else if (spec.hostile && away < spec.aggro) {
       wish.copy(toPlayer).setY(0).normalize().multiplyScalar(spec.speed);
       mob.group.rotation.y = Math.atan2(toPlayer.x, toPlayer.z);
     } else {
@@ -1777,6 +1901,11 @@ function updateMobs(dt) {
     const feet = Math.floor(mob.pos.y);
     const blockedX = isSolid(getBlock(Math.floor(nx), feet, Math.floor(mob.pos.z)));
     const blockedZ = isSolid(getBlock(Math.floor(mob.pos.x), feet, Math.floor(nz)));
+    if (raiding && (blockedX || blockedZ)) {
+      const bx = blockedX ? Math.floor(nx) : Math.floor(mob.pos.x);
+      const bz = blockedZ ? Math.floor(nz) : Math.floor(mob.pos.z);
+      if (chewBlock(mob, dt, bx, feet, bz)) { mob.group.position.copy(mob.pos); continue; }
+    } else if (mob.chew) mob.chew = 0;
     const canStep = !isSolid(getBlock(Math.floor(nx), feet + 1, Math.floor(nz)));
     if ((blockedX || blockedZ) && canStep && mob.vel.y <= 0.1) mob.vel.y = 7.2;
     if (!blockedX && inTerritory(nx, mob.pos.z)) mob.pos.x = nx;
@@ -1937,6 +2066,7 @@ function frame(now) {
   }
   updateBreaking(dt);
   updateSky(dt);
+  updateRaid(dt);
   updateSpawning(dt);
   updateMobs(dt);
 
@@ -2029,13 +2159,14 @@ window.frontier = {
   territory: () => territory, inTerritory, expandTerritory, discovered,
   saveWorld, loadSlot, slotSummary, exportWorld, worldPayload,
   rpg: () => ({ ...rpg, quest:RPG_QUESTS[rpg.questIndex] || null }), questEvent, addXp,
-  settlers, spawnSettlers, nearestSettler, talkToSettler, openJournal, openTradingPost, completeSettlementJob, buyFromTradingPost,
+  settlers, spawnSettlers, nearestSettler, talkToSettler,
+  raid, beginRaid, endRaid, updateRaid, settlementHub, harmSettler, chewBlock, settlementTier, openJournal, openTradingPost, completeSettlementJob, buyFromTradingPost,
   setSlot: (i) => { activeSlot = i; },
   /* run the world forward deterministically — used by tests, and handy for tuning */
   step: (seconds, dt) => {
     dt = dt || 1 / 60;
     for (let i = 0; i < Math.round(seconds / dt); i++) {
-      updateSpawning(dt); updateMobs(dt); updateSky(dt);
+      updateSpawning(dt); updateMobs(dt); updateSky(dt); updateRaid(dt);
     }
   },
   isNight: () => isNight(),

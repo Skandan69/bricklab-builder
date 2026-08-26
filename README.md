@@ -5,7 +5,7 @@ BrickLab Builder is an original browser-based creative construction game. It inc
 ## Playable routes
 
 - `/` — Build Your Dream Cities landing page, guided build, free build, and showcase worlds
-- `/worldforge.html` — BrickLab Frontier open-world building mode
+- `/worldforge.html` — Open World: claim plots, AI builders raise the structures, timed Frontier Gate expeditions
 - `/frontier.html` — BrickLab Frontier: the settlement RPG on the chunked voxel engine (mining, crafting, quests, settlers, trade)
 - `/infinite-plots.html` — claimable 48 × 48 plots with Open World structure import
 - `/brickforge.html` — the 3D construction engine used by the city builder
@@ -90,6 +90,51 @@ cache or a different browser, and can be shared by link or listed publicly.
 
 Set it up with `.env.example` and `npm run db:migrate`. See
 `docs/saved-towns.md` for the full route reference.
+
+## Night raids
+
+Creatures used to be a hazard to the player and nothing else: you could die, but
+nothing you built could be harmed — which made *defend*, the fourth verb on the
+box, the one the game did not deliver.
+
+After dusk, raiders now walk on the settlement rather than on you.
+`settlementHub()` is the running centre of everything you have placed, so they
+head for your build, not a fixed point. When a placed block stands in their way
+they chew through it in `RAID_CHEW_SECONDS` — but only if it is standing in the
+dark. `litNearby()` within `RAID_LIGHT_RADIUS` refuses the bite outright, so
+torchlight is the wall that actually works, which is what the crafting tree was
+pointing at all along. Settlers caught unlit are driven off until dawn rather
+than killed; a lit settler is safe.
+
+A raid only starts at `RAID_GRACE_TIER` (Hamlet) and above, so a brand new Camp
+is left alone while the player is still learning to mine. Raid size is
+`2 + settlementTier()`, and dawn removes the raiders, restores the settlers and
+reports what the night cost.
+
+## Open World
+
+`/worldforge.html` is the fourth game and the only one where you do not lay every
+block yourself. Twelve claim beacons ring the map; press `E` on one and a named
+AI builder occupies the plot and raises a whole structure over about eleven
+seconds, block by block, which then persists in your save. What gets built is
+decided by the trade the site is named for — `builderCraft()` maps a site id to a
+Watchtower, Workshop, Glasshouse or Builder Lodge, so twelve plots are not one
+plot twelve times.
+
+There is no combat and no hunger. The pressure comes from land: `within()` is a
+hard visible boundary you buy outward with coins, and `STAGE_CAP` ties how far it
+can go to the settlement stage — Camp stops at 22, a Civilisation reaches 54. The
+stage used to be a label on the HUD; it is now the thing coins are for.
+
+The Frontier Gate is a two-minute round trip into a separate four-island zone with
+a 24-item pack cap, a re-rolled ore distribution each run, and a rarity rule that
+strips anything better than coal if the timer beats you back. Blocks you place
+inside the isles are tagged `zone:'expedition'` so they cannot follow you home or
+end up in your save.
+
+`window.worldforge` exposes the world, the player, the claim sites and the
+progression helpers, so the mode can be driven from tests the same way
+`window.frontier` drives the RPG.
 
 ## Settlement tiers
 
