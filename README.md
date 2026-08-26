@@ -91,6 +91,26 @@ cache or a different browser, and can be shared by link or listed publicly.
 Set it up with `.env.example` and `npm run db:migrate`. See
 `docs/saved-towns.md` for the full route reference.
 
+## Night raids
+
+Creatures used to be a hazard to the player and nothing else: you could die, but
+nothing you built could be harmed — which made *defend*, the fourth verb on the
+box, the one the game did not deliver.
+
+After dusk, raiders now walk on the settlement rather than on you.
+`settlementHub()` is the running centre of everything you have placed, so they
+head for your build, not a fixed point. When a placed block stands in their way
+they chew through it in `RAID_CHEW_SECONDS` — but only if it is standing in the
+dark. `litNearby()` within `RAID_LIGHT_RADIUS` refuses the bite outright, so
+torchlight is the wall that actually works, which is what the crafting tree was
+pointing at all along. Settlers caught unlit are driven off until dawn rather
+than killed; a lit settler is safe.
+
+A raid only starts at `RAID_GRACE_TIER` (Hamlet) and above, so a brand new Camp
+is left alone while the player is still learning to mine. Raid size is
+`2 + settlementTier()`, and dawn removes the raiders, restores the settlers and
+reports what the night cost.
+
 ## Open World
 
 `/worldforge.html` is the fourth game and the only one where you do not lay every
