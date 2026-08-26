@@ -433,6 +433,14 @@ test("every game can send player feedback through one shared widget", async () =
   assert.match(widget, /'\/frontier\.html': 'frontier'/);
   assert.match(widget, /'\/worldforge\.html': 'worldforge'/);
   assert.match(widget, /'\/infinite-plots\.html': 'plots'/);
+  // four specific questions, asked one at a time, beat a blank box
+  assert.match(widget, /var STEPS = \[/);
+  for (const q of ["How was it\\?", "What made you stop playing\\?",
+                   "What was confusing or annoying\\?", "Would you play again tomorrow\\?"]) {
+    assert.match(widget, new RegExp(q));
+  }
+  assert.match(widget, /Question ' \+ \(step \+ 1\) \+ ' of ' \+ STEPS\.length/);
+  assert.match(widget, /function transcript\(\)/);
   // context is read when the note is sent, so load order does not matter
   assert.match(widget, /function gameContext\(\)/);
   assert.match(widget, /played: Math\.round\(\(Date\.now\(\) - started\) \/ 1000\)/);
@@ -469,8 +477,8 @@ test("the feedback route validates before it touches storage", async () => {
   const storageAt = route.indexOf("const db = await getAnyDb();", route.indexOf("export async function POST"));
   assert.ok(validateAt > 0 && storageAt > validateAt, "validation must precede storage");
   // reading it back is gated on a secret, and denied outright when unset
-  assert.match(route, /const expected = process\.env\.FEEDBACK_KEY;/);
-  assert.match(route, /if \(!expected\) return fail\("Set FEEDBACK_KEY to read feedback", 503\)/);
+  assert.match(route, /const expected = process\.env\.ADMIN_KEY;/);
+  assert.match(route, /if \(!expected \|\| expected\.length < 16\)/);
   assert.match(route, /if \(key !== expected\) return fail\("Not found", 404\)/);
 
   // the table it writes to exists in the schema and in a migration
@@ -480,4 +488,53 @@ test("the feedback route validates before it touches storage", async () => {
   assert.match(migration, /CREATE TABLE `feedback`/);
   const journal = await readFile(new URL("../drizzle/meta/_journal.json", import.meta.url), "utf8");
   assert.match(journal, /0002_feedback/);
+});
+
+test("the public endpoints are limited before the link is shared", async () => {
+  const limits = await readFile(new URL("../app/api/limits.ts", import.meta.url), "utf8");
+
+  // a cookie is trivially cleared and an address trivially shared, so both count
+  assert.match(limits, /feedbackPerHourPerAddress: 10/);
+  assert.match(limits, /feedbackPerDayPerPlayer: 25/);
+  assert.match(limits, /townsPerHourPerAddress: 12/);
+  assert.match(limits, /townsPerOwner: 40/);
+  // the address is hashed, never stored raw
+  assert.match(limits, /export async function ipHash/);
+  assert.match(limits, /crypto\.subtle\.digest\("SHA-256", bytes\)/);
+  assert.doesNotMatch(limits, /x-forwarded-for.*\)\s*;\s*return first/s);
+
+  const feedback = await readFile(new URL("../app/api/feedback/route.ts", import.meta.url), "utf8");
+  assert.match(feedback, /feedbackFromAddress\(db, address, since\(HOUR\)\)/);
+  assert.match(feedback, /feedbackFromPlayer\(db, viewer\.ownerId, since\(DAY\)\)/);
+  assert.match(feedback, /return tooMany\("feedback"\)/);
+  // the transcript keeps its line breaks; other control characters go
+  assert.match(feedback, /replace\(\/\[\\u0000-\\u0009\\u000b-\\u001f\\u007f\]\/g, ""\)/);
+  // and the address hash is not handed back out
+  assert.doesNotMatch(feedback, /ipHash: feedback\.ipHash/);
+
+  const townsRoute = await readFile(new URL("../app/api/towns/route.ts", import.meta.url), "utf8");
+  assert.match(townsRoute, /townsFromAddress\(db, address, since\(HOUR\)\)/);
+  assert.match(townsRoute, /townsOwnedBy\(db, viewer\.ownerId\)/);
+  assert.match(townsRoute, /ipHash: address/);
+});
+
+test("a public town can be taken down", async () => {
+  const admin = await readFile(new URL("../app/api/admin/towns/route.ts", import.meta.url), "utf8");
+
+  // gated on a secret, and refuses everyone when it is unset or too short
+  assert.match(admin, /const expected = process\.env\.ADMIN_KEY;/);
+  assert.match(admin, /if \(!expected \|\| expected\.length < 16\)/);
+  // a wrong key and a missing route look the same from outside
+  assert.match(admin, /if \(key !== expected\) return fail\("Not found", 404\)/);
+  // two strengths of takedown
+  assert.match(admin, /body\.action === "delete" \? "delete" : body\.action === "unlist" \? "unlist" : null/);
+  assert.match(admin, /set\(\{ visibility: "private" \}\)/);
+  assert.match(admin, /db\.delete\(townLikes\)\.where\(eq\(townLikes\.townId, id\)\)/);
+
+  // the schema carries the rate-limit column and its migration
+  const schema = await readFile(new URL("../db/schema.ts", import.meta.url), "utf8");
+  assert.match(schema, /ipHash: text\("ip_hash"\)/);
+  const migration = await readFile(new URL("../drizzle/0003_limits.sql", import.meta.url), "utf8");
+  assert.match(migration, /ALTER TABLE `towns` ADD `ip_hash` text/);
+  assert.match(migration, /ALTER TABLE `feedback` ADD `ip_hash` text/);
 });
