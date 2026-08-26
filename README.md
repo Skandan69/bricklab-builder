@@ -91,6 +91,32 @@ cache or a different browser, and can be shared by link or listed publicly.
 Set it up with `.env.example` and `npm run db:migrate`. See
 `docs/saved-towns.md` for the full route reference.
 
+## Sharing the link
+
+The site is public, so sharing it changes traffic rather than access. Two things
+had to exist before the URL could go anywhere but a private invitation.
+
+**Rate limits.** `app/api/limits.ts` counts what an address and a player have
+already written. Feedback is capped at 10 an hour per address and 25 a day per
+player; new towns at 12 an hour per address and 40 per owner in total. Both
+handles are weak on their own — a cookie is trivially cleared, an address
+trivially shared — so both are counted and the stricter one wins. The address is
+stored only as a one-way hash, in `ip_hash`, used for counting and never handed
+back out. This is a speed bump for the careless, not a defence against someone
+determined.
+
+The town cap matters more than it looks: `ensureViewer()` hands a cookie to
+anyone who asks, which is the point for a player and a hole for a script, and
+each town may carry 1.5 MB of JSON.
+
+**A takedown path.** `/api/admin/towns?key=…` lists what is currently public and
+takes anything down — `unlist` leaves it with its owner but out of the gallery,
+`delete` removes it and its likes. Gated on the same `ADMIN_KEY`, which must be
+at least 16 characters; unset, it refuses everyone including you.
+
+Neither is a substitute for accounts. They are what makes the link safe to hand
+out while accounts do not exist.
+
 ## Player feedback
 
 Four playable games and, so far, a sample size of zero. `public/feedback.js` is
@@ -114,11 +140,16 @@ Typing in the box does not drive the player: the widget stops `keydown`,
 `keyup` and `keypress` from reaching the games' document-level handlers, and
 releases pointer lock when it opens.
 
+Rather than a blank box, it asks four specific questions one at a time — how
+was it, what made you stop, what was confusing, would you come back. "Any
+feedback?" gets "it's good"; "What made you stop playing?" gets an answer you
+can act on. The note is sent as a readable transcript, with the same answers
+repeated as structured fields in the context.
+
 `POST /api/feedback` is public, so it validates before it reaches for storage
 and caps hard — four known game ids, 1,200 characters of note, 2,000 of
-context. Reading it back is `GET /api/feedback?key=…`, gated on `FEEDBACK_KEY`;
-with that unset nobody can read what players wrote, including you. That is a
-shared secret standing in for accounts, which is the next thing to build.
+context. Reading it back is `GET /api/feedback?key=…`, gated on `ADMIN_KEY`;
+with that unset nobody can read what players wrote, including you.
 
 ## Night raids
 
