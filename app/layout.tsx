@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import "./studio.css";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://bricklab-builder.asd123456987.chatgpt.site"),
@@ -12,6 +13,17 @@ export const metadata: Metadata = {
 
 export default function RootLayout({children}: Readonly<{children:React.ReactNode}>) { return (
     <html lang="en">
+      <head>
+        {/* Space Grotesk carries the display type, Inter the interface text.
+            Linked rather than bundled so a font outage cannot fail a build. */}
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
+        <link
+          rel="stylesheet"
+          href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap"
+        />
+        <meta name="theme-color" content="#07080b" />
+      </head>
       <body>
         {children}
         {/* the same widget the standalone games load, so feedback arrives in one place */}

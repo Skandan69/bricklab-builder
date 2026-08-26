@@ -242,9 +242,9 @@ export default function Home() {
           <div className="trust-row"><span><b>01</b> Pick a piece</span><span><b>02</b> Build anything</span><span><b>03</b> Press play</span></div>
         </div>
         <div className="hero-city-visual" aria-hidden="true">
-          <img src="/metro-city-hero.webp?v=2" alt=""/>
+          <img src="/shots/cities-hero.webp" alt=""/>
           <div className="hero-city-shade"/>
-          <div className="hero-world-chip"><span>Live showcase</span><strong>Metro City 2</strong><small>Walk · Ride · Build · Play</small></div>
+          <div className="hero-world-chip"><span>Live showcase</span><strong>Metro City 2</strong><small>Captured in the live builder</small></div>
           <div className="hero-feature feature-rail"><b>01</b><span>Passenger railway</span></div>
           <div className="hero-feature feature-build"><b>02</b><span>Every piece editable</span></div>
           <div className="hero-feature feature-walk"><b>03</b><span>Walk inside your world</span></div>
