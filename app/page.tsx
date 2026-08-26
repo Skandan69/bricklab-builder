@@ -65,6 +65,23 @@ export default function Home() {
   const [worldNotice, setWorldNotice] = useState("");
   const api = () => (frameRef.current?.contentWindow as BuilderWindow | null)?.brickforge;
 
+  /* what the feedback widget reports alongside a note, so nobody has to
+     describe where they were when something went wrong */
+  useEffect(() => {
+    (window as unknown as { BRICKLAB_FEEDBACK?: unknown }).BRICKLAB_FEEDBACK = {
+      game: "cities",
+      context: () => {
+        const forge = api();
+        return {
+          screen: started ? "builder" : "landing",
+          mode,
+          bricks: forge?.bricks().length ?? 0,
+          builderMode: forge?.mode() ?? null,
+        };
+      },
+    };
+  }, [started, mode]);
+
   useEffect(() => {
     if (!started || !ready) return;
     const timer = window.setInterval(() => {
