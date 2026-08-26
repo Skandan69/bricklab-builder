@@ -15,6 +15,13 @@
       "when": 1787646529053,
       "tag": "0001_towns",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1787734334567,
+      "tag": "0002_feedback",
+      "breakpoints": true
     }
   ]
 }
