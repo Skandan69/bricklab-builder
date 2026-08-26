@@ -5,9 +5,18 @@ import { fail, isTownId, isVoterId } from "../../shared";
 
 export const dynamic = "force-dynamic";
 
+/**
+ * Count the likes on a town.
+ *
+ * This used to return `storageUnavailable()` — a Response — from inside a
+ * function whose other branch returns a plain object, and the caller passed
+ * whatever came back to `Response.json()`. Serialising a Response is not a
+ * thing, so a missing database turned into an unexplained 500. Now it returns
+ * null and the caller decides.
+ */
 async function tally(townId: string, voterId: string | null) {
   const db = await getAnyDb();
-  if (!db) return storageUnavailable();
+  if (!db) return null;
   const [total] = await db
     .select({ value: count() })
     .from(townLikes)
@@ -24,12 +33,23 @@ async function tally(townId: string, voterId: string | null) {
   return { count: total?.value ?? 0, liked };
 }
 
+/** Never let a database problem leave the caller with an empty 500 body. */
+async function respond(townId: string, voterId: string | null) {
+  try {
+    const result = await tally(townId, voterId);
+    if (!result) return storageUnavailable();
+    return Response.json(result);
+  } catch (error) {
+    return fail(`Likes are unavailable: ${(error as Error)?.message ?? "unknown error"}`.slice(0, 200), 503);
+  }
+}
+
 /** GET /api/towns/:id/like?voterId= */
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   if (!isTownId(id)) return fail("Invalid town id", 400);
   const voterIdParam = new URL(request.url).searchParams.get("voterId");
-  return Response.json(await tally(id, isVoterId(voterIdParam) ? voterIdParam : null));
+  return respond(id, isVoterId(voterIdParam) ? voterIdParam : null);
 }
 
 /** POST /api/towns/:id/like { voterId, liked } */
@@ -54,13 +74,17 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   if (town.visibility === "private") return fail("This town is private", 403);
 
   const rowId = `${id}:${body.voterId}`;
-  if (body.liked) {
-    await db
-      .insert(townLikes)
-      .values({ id: rowId, townId: id, voterId: body.voterId })
-      .onConflictDoNothing();
-  } else {
-    await db.delete(townLikes).where(eq(townLikes.id, rowId));
+  try {
+    if (body.liked) {
+      await db
+        .insert(townLikes)
+        .values({ id: rowId, townId: id, voterId: body.voterId })
+        .onConflictDoNothing();
+    } else {
+      await db.delete(townLikes).where(eq(townLikes.id, rowId));
+    }
+  } catch (error) {
+    return fail(`Could not record that like: ${(error as Error)?.message ?? "unknown error"}`.slice(0, 200), 503);
   }
-  return Response.json(await tally(id, body.voterId));
+  return respond(id, body.voterId);
 }
