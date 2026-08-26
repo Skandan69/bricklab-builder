@@ -343,3 +343,56 @@ test("Frontier RPG hardening: saves, pausing, economy and settlement tiers", asy
   assert.match(game, /\(offer\.tier \|\| 0\) > settlementTier\(\)/);
   assert.match(game, /id="rpgSettlement"/);
 });
+
+test("Open World is linked from the homepage as its own game", async () => {
+  const page = await readFile(new URL("../app/page.tsx", import.meta.url), "utf8");
+  assert.match(page, /href="\/worldforge\.html"/);
+  assert.match(page, /Open World/);
+  assert.match(page, /Four connected ways to play/);
+  assert.match(page, /openworld-card/);
+
+  const css = await readFile(new URL("../app/globals.css", import.meta.url), "utf8");
+  assert.match(css, /\.openworld-card\{background:/);
+  // four cards need two columns, not three
+  assert.match(css, /\.universe-grid\{display:grid;grid-template-columns:repeat\(2,minmax\(0,1fr\)\)/);
+});
+
+test("Open World hardening: saves, expeditions, economy and varied AI builds", async () => {
+  const world = await readFile(new URL("../public/worldforge.html", import.meta.url), "utf8");
+
+  // a world slot cannot silently discard unsaved work, and the game continues by default
+  assert.match(world, /Unsaved changes in the current frontier will be lost/);
+  assert.match(world, /if\(localStorage\.getItem\('bricklab-frontier-slot-1'\)\)load\(1\);else generate\(\)/);
+  // saving reports a full quota instead of failing in silence
+  assert.match(world, /Could not save — browser storage is full/);
+  // a load must not rebuild scenery the player demolished
+  assert.match(world, /razed/);
+  // the expedition no longer converts a creative player, and its blocks stay behind
+  assert.match(world, /modeBeforeExpedition=mode/);
+  assert.match(world, /if\(modeBeforeExpedition\)\{mode=modeBeforeExpedition/);
+  assert.match(world, /if\(expeditionActive\)\{const nm=blocks\.get\(key\(x,y,z\)\);if\(nm\)nm\.userData\.zone='expedition'\}/);
+  // the return gate arms only once the player has left it
+  assert.match(world, /gateArmed/);
+  // the relic pays its ten coins once per world, not once per run
+  assert.match(world, /const first=!unlockedBlueprints\.includes\('ancient-arch'\);if\(first\)\{unlockedBlueprints\.push\('ancient-arch'\);coins\+=10\}/);
+  // building through an open menu is no longer possible
+  assert.match(world, /if\(k==='f'&&locked\)placeBlock\(\)/);
+  // the AI builder works inside ground the player may edit, and stands there
+  assert.match(world, /Math\.hypot\(x-site\.buildX,z-site\.buildZ\)<=6/);
+  assert.match(world, /createNPC\(site\.buildX\+2,site\.buildZ\+2/);
+  // four trades, not one lodge twelve times
+  assert.match(world, /function builderCraft\(site\)/);
+  for (const label of ["Watchtower", "Workshop", "Glasshouse", "Builder Lodge"]) {
+    assert.match(world, new RegExp(`label:'${label}'`));
+  }
+  // the settlement stage now decides how far the frontier can grow
+  assert.match(world, /const STAGE_CAP=\{Camp:22,/);
+  assert.match(world, /function territoryCap\(\)/);
+  assert.match(world, /const cap=territoryCap\(\)/);
+  // the column-height lookup is cached instead of scanning every block per frame
+  assert.match(world, /const topCache=new Map\(\)/);
+  // meshes are disposed rather than orphaned
+  assert.match(world, /function disposeGroup\(group\)/);
+  // and the mode is drivable from tests
+  assert.match(world, /window\.worldforge=\{/);
+});
