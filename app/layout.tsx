@@ -27,6 +27,9 @@ export default function RootLayout({children}: Readonly<{children:React.ReactNod
       <body>
         {children}
         {/* the same widget the standalone games load, so feedback arrives in one place */}
+        {/* the challenge scorer, shared by the page and anything else that needs
+            to compare two builds */}
+        <script src="/challenge-score.js" defer />
         <script src="/feedback.js" defer />
       </body>
     </html>

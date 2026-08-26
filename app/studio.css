@@ -518,7 +518,7 @@ body:has(.builder-shell) {
 }
 .header-actions button:hover { background: rgba(255,255,255,.09); border-color: var(--bl-line-hi); }
 
-.mission-panel, .demo-panel, .free-panel {
+.mission-panel, .demo-panel, .free-panel, .copy-panel {
   background: rgba(13,16,22,.92);
   backdrop-filter: blur(16px);
   border: 1px solid var(--bl-line-mid);
@@ -526,10 +526,10 @@ body:has(.builder-shell) {
   color: var(--bl-text);
   box-shadow: var(--bl-e3);
 }
-.mission-panel h2, .demo-panel h2, .free-panel h2 {
+.mission-panel h2, .demo-panel h2, .free-panel h2, .copy-panel h2 {
   font-family: var(--bl-display); font-weight: 700; letter-spacing: -.02em; color: var(--bl-text);
 }
-.mission-panel p, .demo-panel p, .free-panel p, .demo-summary { color: var(--bl-text-2); }
+.mission-panel p, .demo-panel p, .free-panel p, .copy-panel p, .demo-summary { color: var(--bl-text-2); }
 .panel-label { color: var(--bl-text-3); letter-spacing: .1em; text-transform: uppercase; font-size: 11px; }
 .progress-track { background: rgba(255,255,255,.08); border-radius: 999px; overflow: hidden; }
 .progress-track span { background: linear-gradient(90deg, var(--bl-brand), var(--bl-gold)); }
@@ -640,3 +640,127 @@ kbd {
   padding: 9px 16px;
 }
 .world-card:hover .world-card-art-empty { background-color: var(--bl-surface-3); }
+
+/* =========================================================================
+   City challenge
+   -------------------------------------------------------------------------
+   The picker on the landing page, and the panel that sits beside the builder
+   while a target is live.
+   ========================================================================= */
+.challenge-picker {
+  max-width: 1240px;
+  margin-inline: auto;
+  padding: 72px 32px;
+  border-top: 1px solid var(--bl-line);
+}
+.challenge-picker-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; margin-bottom: 30px; }
+.challenge-close {
+  width: 38px; height: 38px; flex: none;
+  border-radius: 50%; border: 1px solid var(--bl-line-mid);
+  background: rgba(255,255,255,.04); color: var(--bl-text-2);
+  font-size: 20px; line-height: 1; cursor: pointer;
+  transition: background var(--bl-t), color var(--bl-t), border-color var(--bl-t);
+}
+.challenge-close:hover { background: rgba(255,255,255,.09); color: var(--bl-text); border-color: var(--bl-line-hi); }
+
+.challenge-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(268px, 1fr)); gap: 18px; }
+.challenge-card {
+  display: flex; flex-direction: column; gap: 9px;
+  padding: 18px;
+  background: linear-gradient(180deg, var(--bl-surface-2), var(--bl-surface));
+  border: 1px solid var(--bl-line);
+  border-radius: var(--bl-r-m);
+  box-shadow: var(--bl-e2);
+  transition: transform var(--bl-t), border-color var(--bl-t), box-shadow var(--bl-t);
+}
+.challenge-card:hover { transform: translateY(-3px); border-color: var(--bl-line-mid); box-shadow: var(--bl-e3); }
+.challenge-card-free { background: linear-gradient(180deg, rgba(255,95,66,.14), var(--bl-surface)); border-color: rgba(255,95,66,.3); }
+.challenge-art { position: relative; border-radius: var(--bl-r-s); overflow: hidden; background: var(--bl-bg-lift); aspect-ratio: 9 / 7; }
+.challenge-art img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.challenge-diff {
+  position: absolute; right: 9px; bottom: 9px;
+  padding: 4px 9px; border-radius: 999px;
+  background: rgba(12,14,19,.85); border: 1px solid var(--bl-line-mid);
+  font-size: 9px; letter-spacing: 2px; color: var(--bl-gold);
+}
+.challenge-diff i { color: rgba(255,255,255,.18); font-style: normal; }
+.challenge-kind {
+  font-family: var(--bl-display); font-size: 10.5px; font-weight: 600;
+  letter-spacing: .13em; text-transform: uppercase; color: var(--bl-text-3);
+}
+.challenge-card h3 { margin: 0; font-family: var(--bl-display); font-weight: 700; font-size: 18px; letter-spacing: -.02em; color: var(--bl-text); }
+.challenge-card p { margin: 0; font-size: 13.5px; line-height: 1.55; color: var(--bl-text-2); flex: 1; }
+.challenge-meta { display: flex; flex-wrap: wrap; gap: 8px; font-size: 11.5px; color: var(--bl-text-3); }
+.challenge-meta span { padding: 3px 8px; border: 1px solid var(--bl-line); border-radius: 999px; }
+.challenge-best { color: var(--bl-green); border-color: rgba(74,208,127,.36) !important; }
+.challenge-card button {
+  margin-top: 4px; padding: 10px 14px;
+  border-radius: var(--bl-r-xs); border: 1px solid var(--bl-line-mid);
+  background: rgba(255,255,255,.05); color: var(--bl-text);
+  font-weight: 600; font-size: 13.5px; cursor: pointer;
+  transition: background var(--bl-t), border-color var(--bl-t);
+}
+.challenge-card button:hover { background: rgba(255,255,255,.1); border-color: var(--bl-line-hi); }
+.challenge-card-free button { background: linear-gradient(180deg, var(--bl-brand), var(--bl-brand-lo)); border-color: transparent; color: #fff; }
+.challenge-foot { margin-top: 22px; font-size: 13px; line-height: 1.6; color: var(--bl-text-3); max-width: 72ch; }
+
+/* --- the panel beside the builder ------------------------------------- */
+/* The other three panels are positioned in globals.css; this one is new, so it
+   has to place itself or it lays out in flow and ends up off screen. */
+.copy-panel {
+  position: absolute;
+  right: 14px;
+  top: 14px;
+  width: 292px;
+  max-height: calc(100% - 28px);
+  overflow: auto;
+  z-index: 3;
+  padding: 16px;
+  display: grid;
+  gap: 11px;
+  align-content: start;
+}
+.copy-panel > p:first-child {
+  margin: 0;
+  font-family: var(--bl-display);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: .13em;
+  text-transform: uppercase;
+  color: var(--bl-text-3);
+}
+.copy-panel h2 { margin: 0; font-size: 21px; }
+.copy-panel .live-badge { justify-self: start; padding: 4px 10px; font-size: 10.5px; letter-spacing: .08em; }
+.copy-panel .view-buttons { display: grid; gap: 7px; }
+.copy-panel .view-buttons button { padding: 10px 12px; font-size: 13px; }
+
+.copy-reference { border: 1px solid var(--bl-line-mid); border-radius: var(--bl-r-s); overflow: hidden; background: var(--bl-bg-lift); }
+.copy-reference img { width: 100%; display: block; }
+.copy-reference small { display: block; padding: 8px 10px; font-size: 11.5px; color: var(--bl-text-3); border-top: 1px solid var(--bl-line); }
+.copy-clock {
+  display: grid; gap: 2px; padding: 12px 14px;
+  border: 1px solid var(--bl-line-mid); border-radius: var(--bl-r-s);
+  background: rgba(255,255,255,.03);
+}
+.copy-clock span { font-size: 10.5px; letter-spacing: .12em; text-transform: uppercase; color: var(--bl-text-3); }
+.copy-clock strong { font-family: var(--bl-display); font-size: 30px; line-height: 1; color: var(--bl-text); font-variant-numeric: tabular-nums; }
+.copy-clock small { font-size: 11.5px; color: var(--bl-gold); }
+.copy-clock.urgent { border-color: rgba(255,95,66,.5); background: rgba(255,95,66,.1); }
+.copy-clock.urgent strong { color: var(--bl-brand); }
+
+.copy-result { display: grid; gap: 12px; padding: 14px; border: 1px solid var(--bl-line-mid); border-radius: var(--bl-r-s); background: rgba(255,255,255,.03); }
+.copy-score { display: flex; align-items: baseline; gap: 8px; }
+.copy-score b { font-family: var(--bl-display); font-size: 44px; line-height: 1; color: var(--bl-green); font-variant-numeric: tabular-nums; }
+.copy-score span { font-size: 12px; letter-spacing: .1em; text-transform: uppercase; color: var(--bl-text-3); }
+.copy-bars { display: grid; gap: 7px; }
+.copy-bars > div { display: grid; grid-template-columns: 84px 1fr 44px; align-items: center; gap: 9px; font-size: 12px; color: var(--bl-text-2); }
+.copy-bars i { display: block; height: 7px; border-radius: 999px; background: rgba(255,255,255,.09); overflow: hidden; }
+.copy-bars em { display: block; height: 100%; background: linear-gradient(90deg, var(--bl-brand), var(--bl-gold)); }
+.copy-bars b { text-align: right; font-variant-numeric: tabular-nums; color: var(--bl-text); }
+.copy-detail { font-size: 12.5px; line-height: 1.55; color: var(--bl-text-2); margin: 0; }
+.copy-primary { background: linear-gradient(180deg, var(--bl-brand), var(--bl-brand-lo)) !important; border-color: transparent !important; color: #fff !important; }
+.copy-rules { font-size: 11.5px; line-height: 1.5; color: var(--bl-text-3); }
+
+@media (max-width: 900px) {
+  .challenge-picker { padding: 48px 20px; }
+}

@@ -8,9 +8,22 @@ type CityView = "city" | "resident" | "rail" | "tour" | "inspect";
 type DemoWorld = "city1" | "city2" | "indian" | "royal" | "skyrail";
 type ResidentDestination = "home" | "restaurant" | "hotel" | "palace" | "temple" | "bazaar" | "stepwell" | "ghats";
 type ForgeBrick = { typeId: string };
+type PieceType = { id: string; w: number; d: number; h: number };
+type ChallengeTarget = {
+  id: string; name: string; brief: string; difficulty: number;
+  seconds: number; pieces: number; file: string; image: string;
+};
+type ChallengeResult = {
+  score: number; shape: number; pieceMatch: number; colourMatch: number;
+  targetCells: number; attemptCells: number; shared: number; missing: number;
+  extra: number; rotation: number;
+};
+type Scorer = {
+  compare: (target: unknown[], attempt: unknown[], types: Record<string, PieceType>) => ChallengeResult;
+};
 type TownPermissions = { copyAllowed: boolean; attribution: string };
 type ForgeApi = { bricks: () => ForgeBrick[]; mode: () => "build" | "play"; clearAll: (record?: boolean) => void; setMode: (mode: "build" | "play") => void; setShowcaseMode: (locked: boolean) => void; setDemoCity: (name: DemoWorld) => void; loadShowcaseWorld: (data: unknown, name: DemoWorld) => boolean; setView: (view: CityView) => boolean; setResidentDestination: (name: ResidentDestination) => void; enterMyTownResident: () => boolean; visitMyTownBuilding: (name: string) => boolean; setRailLook: (yaw: number, pitch?: number) => void; setWeather: (name: "clear" | "rain" | "snow" | "fog") => void; saveLocalTown: () => boolean; loadLocalTown: () => boolean; startHomePlot: () => boolean; expandHomePlot: () => string; placeBlueprint: (name: string) => boolean; loadWorldLayout: (name: string) => boolean; copyDemoCity: () => boolean; setTownCopyAllowed: (allowed: boolean) => boolean; townPermissions: () => TownPermissions; exportTown?: () => unknown; importTown?: (data: unknown) => boolean; snapshot?: (width?: number) => string; };
-type BuilderWindow = Window & { brickforge?: ForgeApi };
+type BuilderWindow = Window & { brickforge?: ForgeApi & { types?: PieceType[] } };
 
 const missions = [
   { title: "Lay the first road", detail: "Add at least five connected road pieces.", target: "roads" },
@@ -47,7 +60,18 @@ export default function Home() {
   const frameRef = useRef<HTMLIFrameElement>(null);
   const [started, setStarted] = useState(false);
   const [sessionKey, setSessionKey] = useState(0);
-  const [mode, setMode] = useState<"challenge" | "free" | "demo">("challenge");
+  const [mode, setMode] = useState<"challenge" | "free" | "demo" | "copy">("challenge");
+  /* Copy-the-build: the player is given a target and scored on how close they
+     get. The scorer lives in /challenge-score.js so the builder and this page
+     agree on the maths. */
+  const [targets, setTargets] = useState<ChallengeTarget[]>([]);
+  const [target, setTarget] = useState<ChallengeTarget | null>(null);
+  const [targetBricks, setTargetBricks] = useState<unknown[]>([]);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [secondsLeft, setSecondsLeft] = useState<number | null>(null);
+  const [result, setResult] = useState<ChallengeResult | null>(null);
+  const [best, setBest] = useState<Record<string, number>>({});
+  const [scoreNote, setScoreNote] = useState("");
   const [ready, setReady] = useState(false);
   const [brickCount, setBrickCount] = useState(0);
   const [pieceTypes, setPieceTypes] = useState<string[]>([]);
@@ -100,7 +124,98 @@ export default function Home() {
     fetch(`/api/cities/likes?cityId=bricklab-demo&voterId=${voterId}`).then(r => r.json()).then(data => { setLikes(data.count ?? 0); setLiked(!!data.liked); }).catch(() => undefined);
   }, []);
 
-  const begin = (nextMode: "challenge" | "free" | "demo") => {
+  /* The target list is small and static; fetch it once. */
+  useEffect(() => {
+    fetch("/challenges/index.json")
+      .then((r) => r.json())
+      .then((d) => setTargets(Array.isArray(d.targets) ? d.targets : []))
+      .catch(() => undefined);
+    try {
+      const saved = window.localStorage.getItem("bricklab-challenge-best");
+      if (saved) setBest(JSON.parse(saved) as Record<string, number>);
+    } catch { /* a cleared or blocked store just means no personal bests yet */ }
+  }, []);
+
+  /* The clock. It only runs while a target is live and unscored — pausing on a
+     result rather than counting down behind a score the player is reading. */
+  useEffect(() => {
+    if (mode !== "copy" || !target || result || secondsLeft === null) return;
+    if (secondsLeft <= 0) return;
+    const tick = window.setTimeout(() => setSecondsLeft((s) => (s === null ? null : s - 1)), 1000);
+    return () => window.clearTimeout(tick);
+  }, [mode, target, result, secondsLeft]);
+
+  const startTarget = async (choice: ChallengeTarget) => {
+    setScoreNote("");
+    setResult(null);
+    try {
+      const response = await fetch(choice.file);
+      const data = await response.json();
+      setTargetBricks(Array.isArray(data.bricks) ? data.bricks : []);
+    } catch {
+      setScoreNote("That target could not be loaded. Pick another and try again.");
+      return;
+    }
+    setTarget(choice);
+    setSecondsLeft(choice.seconds);
+    setPickerOpen(false);
+    begin("copy");
+  };
+
+  /** Dimensions come from the builder's own catalogue, so they cannot drift. */
+  const pieceTable = (): Record<string, PieceType> => {
+    const list = (frameRef.current?.contentWindow as BuilderWindow | null)?.brickforge?.types ?? [];
+    const table: Record<string, PieceType> = {};
+    list.forEach((t) => { table[t.id] = t; });
+    return table;
+  };
+
+  const scoreAttempt = () => {
+    const forge = api();
+    const scorer = (window as unknown as { BrickLabScore?: Scorer }).BrickLabScore;
+    if (!forge || !scorer) { setScoreNote("The scorer is still loading. Try again in a moment."); return; }
+    const attempt = (forge.exportTown?.() as { bricks?: unknown[] } | undefined)?.bricks ?? [];
+    if (!attempt.length) { setScoreNote("Nothing built yet — place some pieces first."); return; }
+    const outcome = scorer.compare(targetBricks, attempt, pieceTable());
+    setResult(outcome);
+    if (target) {
+      const next = { ...best, [target.id]: Math.max(best[target.id] ?? 0, outcome.score) };
+      setBest(next);
+      try { window.localStorage.setItem("bricklab-challenge-best", JSON.stringify(next)); }
+      catch { /* nothing to do if the store is unavailable */ }
+    }
+  };
+
+  const retryTarget = () => {
+    if (!target) return;
+    setResult(null);
+    setScoreNote("");
+    setSecondsLeft(target.seconds);
+    const forge = api();
+    if (forge) { forge.setMode("build"); forge.startHomePlot(); }
+  };
+
+  const shareTarget = async () => {
+    if (!target) return;
+    const link = `${window.location.origin}/?challenge=${target.id}`;
+    try {
+      await navigator.clipboard.writeText(link);
+      setScoreNote("Link copied. Whoever opens it gets the same target and the same clock.");
+    } catch {
+      setScoreNote(link);
+    }
+  };
+
+  /* A shared link drops you straight into that target. */
+  useEffect(() => {
+    if (!targets.length || target) return;
+    const wanted = new URLSearchParams(window.location.search).get("challenge");
+    if (!wanted) return;
+    const found = targets.find((t) => t.id === wanted);
+    if (found) startTarget(found);
+  }, [targets]);
+
+  const begin = (nextMode: "challenge" | "free" | "demo" | "copy") => {
     setMode(nextMode); setStarted(true); setReady(false); setSessionKey(v => v + 1); setPanelOpen(nextMode === "challenge"); if (nextMode === "demo") { setDemoView("city"); setDemoCity("city2"); }
   };
   const beginDemo = (city: DemoWorld) => {
@@ -132,6 +247,7 @@ export default function Home() {
       if (isDemo) await loadDemoWorld(demoCity, forge);
       forge.setShowcaseMode(isDemo);
       if (mode === "challenge") { forge.setMode("build"); forge.startHomePlot(); setBrickCount(4); }
+      if (mode === "copy") { forge.setMode("build"); forge.startHomePlot(); setBrickCount(0); }
       if (mode === "free") { forge.setMode("build"); if (!forge.loadLocalTown()) forge.startHomePlot(); }
     }, 120);
   };
@@ -242,7 +358,7 @@ export default function Home() {
           <p className="hero-lede">Build your dream city from the ground up, shape land and water, change the weather, then walk, ride and play through everything you create.</p>
           <div className="hero-actions">
             <a className="cta primary-cta" href="#game-universe">Choose your game <span>→</span></a>
-            <button className="cta secondary-cta" onClick={() => begin("challenge")}>Start a city challenge</button>
+            <button className="cta secondary-cta" onClick={() => { setPickerOpen(true); window.setTimeout(() => document.querySelector(".challenge-picker")?.scrollIntoView({ behavior: "smooth", block: "start" }), 60); }}>Start a city challenge</button>
             <a className="cta world-cta" href="/frontier.html">Play Frontier RPG</a>
             <a className="cta world-cta" href="/worldforge.html">Enter the Open World</a>
           </div>
@@ -257,6 +373,48 @@ export default function Home() {
           <div className="hero-feature feature-walk"><b>03</b><span>Walk inside your world</span></div>
         </div>
       </section>
+      {pickerOpen && (
+        <section className="challenge-picker" aria-labelledby="challenge-picker-title">
+          <div className="challenge-picker-head">
+            <div>
+              <p className="eyebrow"><span/> City challenge</p>
+              <h2 id="challenge-picker-title">Pick your challenge.</h2>
+            </div>
+            <button className="challenge-close" onClick={() => setPickerOpen(false)} aria-label="Close the challenge picker">×</button>
+          </div>
+          <div className="challenge-grid">
+            <article className="challenge-card challenge-card-free">
+              <span className="challenge-kind">Build &amp; share</span>
+              <h3>Build anything</h3>
+              <p>No target and no clock. Build what you like with every piece unlocked, publish it, and collect likes from anyone who visits.</p>
+              <button onClick={() => { setPickerOpen(false); begin("free"); }}>Open free build →</button>
+            </article>
+            {targets.map((t) => (
+              <article className="challenge-card" key={t.id}>
+                <div className="challenge-art">
+                  <img src={t.image} alt={`${t.name} — the structure to copy`} loading="lazy"/>
+                  <span className="challenge-diff" aria-label={`Difficulty ${t.difficulty} of 5`}>
+                    {"●".repeat(t.difficulty)}<i>{"●".repeat(5 - t.difficulty)}</i>
+                  </span>
+                </div>
+                <span className="challenge-kind">Copy the build</span>
+                <h3>{t.name}</h3>
+                <p>{t.brief}</p>
+                <div className="challenge-meta">
+                  <span>{t.pieces} pieces</span>
+                  <span>{Math.round(t.seconds / 60)} min</span>
+                  {best[t.id] !== undefined && <span className="challenge-best">Best {best[t.id]}%</span>}
+                </div>
+                <button onClick={() => startTarget(t)}>Start this challenge →</button>
+              </article>
+            ))}
+          </div>
+          <p className="challenge-foot">
+            Scoring is shape first: the silhouette is the headline number, with the right piece and the right colour
+            adding on top. Build it rotated or a few studs across and it still counts — the floor is ignored, so build up.
+          </p>
+        </section>
+      )}
       <section className="game-universe" id="game-universe" aria-labelledby="game-universe-title">
         <div className="universe-heading">
           <p className="eyebrow"><span/> Four connected ways to play</p>
@@ -323,7 +481,7 @@ export default function Home() {
     <main className="builder-shell">
       <header className="app-header">
         <button className="logo logo-button" onClick={() => setStarted(false)}><span className="logo-mark"><i/><i/><i/><i/></span><span>BrickLab</span></button>
-        <div className="app-mode"><span className={mode === "demo" ? "active" : ""}>Showcase Worlds</span><span>•</span><span className={mode === "challenge" ? "active" : ""}>Guided build</span><span>•</span><span className={mode === "free" ? "active" : ""}>Free build</span></div>
+        <div className="app-mode"><span className={mode === "demo" ? "active" : ""}>Showcase Worlds</span><span>•</span><span className={mode === "challenge" ? "active" : ""}>Guided build</span><span>•</span><span className={mode === "free" ? "active" : ""}>Free build</span><span>•</span><span className={mode === "copy" ? "active" : ""}>City challenge</span></div>
         <div className="header-actions"><button onClick={() => begin(mode === "free" ? "demo" : "free")}>Switch mode</button>{mode === "challenge" && <button onClick={resetChallenge}>Restart</button>}</div>
       </header>
       <section className="workspace">
@@ -337,6 +495,57 @@ export default function Home() {
               <ol className="mission-list">{missions.map((item,index) => { const isDone=completed(item.target); const isCurrent=index===doneCount; return <li key={item.title} className={`${isDone?"done":""} ${isCurrent?"current":""}`}><span className="step-dot">{isDone?"✓":index+1}</span><div><h3>{item.title}</h3><p>{item.detail}</p></div></li>; })}</ol>}
             <div className="live-stat"><span>Pieces placed</span><strong>{brickCount}</strong></div>
           </>}
+        </aside>}
+        {mode === "copy" && target && <aside className="copy-panel">
+          <p>City challenge</p>
+          <h2>{target.name}</h2>
+          <span className="live-badge">● COPY THE BUILD</span>
+          <div className="copy-reference">
+            <img src={target.image} alt={`${target.name} — the structure to copy`}/>
+            <small>Build this. Rotation and position do not matter.</small>
+          </div>
+          <p className="demo-summary">{target.brief}</p>
+
+          {!result && (
+            <div className={`copy-clock ${secondsLeft !== null && secondsLeft <= 30 ? "urgent" : ""}`}>
+              <span>Time left</span>
+              <strong>
+                {secondsLeft === null ? "–" :
+                  `${Math.floor(Math.max(0, secondsLeft) / 60)}:${String(Math.max(0, secondsLeft) % 60).padStart(2, "0")}`}
+              </strong>
+              {secondsLeft !== null && secondsLeft <= 0 && <small>Time is up — score it and see how you did.</small>}
+            </div>
+          )}
+
+          {result && (
+            <div className="copy-result">
+              <div className="copy-score"><b>{result.score}%</b><span>match</span></div>
+              <div className="copy-bars">
+                <div><span>Shape</span><i><em style={{width:`${result.shape}%`}}/></i><b>{result.shape}%</b></div>
+                <div><span>Right piece</span><i><em style={{width:`${result.pieceMatch}%`}}/></i><b>{result.pieceMatch}%</b></div>
+                <div><span>Right colour</span><i><em style={{width:`${result.colourMatch}%`}}/></i><b>{result.colourMatch}%</b></div>
+              </div>
+              <p className="copy-detail">
+                You matched {result.shared} of {result.targetCells} cells.
+                {result.missing > 0 && ` ${result.missing} still missing.`}
+                {result.extra > 0 && ` ${result.extra} extra that the target does not have.`}
+                {result.rotation > 0 && ` Scored with your build turned ${result.rotation}°.`}
+              </p>
+              {best[target.id] !== undefined && <p className="copy-detail">Your best on this target: <b>{best[target.id]}%</b></p>}
+            </div>
+          )}
+
+          {scoreNote && <div className="unlock-note">{scoreNote}</div>}
+
+          <div className="view-buttons town-actions">
+            {!result && <button className="copy-primary" onClick={scoreAttempt}>Score my build</button>}
+            {result && <button className="copy-primary" onClick={retryTarget}>Try again</button>}
+            <button onClick={shareTarget}>Challenge a friend</button>
+            <button onClick={() => { setTarget(null); setResult(null); setStarted(false); setPickerOpen(true); }}>Pick another</button>
+          </div>
+          <p className="copy-rules">
+            Shape is the headline number; the right piece and the right colour add on top. The floor is ignored, so build up.
+          </p>
         </aside>}
         {mode === "demo" && <aside className="demo-panel">
           <p>Official showcase</p><h2>{demoDetails[demoCity].title}</h2><span className="live-badge read-only-badge">● READ-ONLY OFFICIAL DEMO</span>
