@@ -2,6 +2,16 @@ import { desc } from "drizzle-orm";
 import { getAnyDb } from "../../../db/client";
 import { feedback } from "../../../db/schema";
 import { currentViewer } from "../towns/identity";
+import {
+  DAY,
+  HOUR,
+  LIMITS,
+  feedbackFromAddress,
+  feedbackFromPlayer,
+  ipHash,
+  since,
+  tooMany,
+} from "../limits";
 
 export const dynamic = "force-dynamic";
 
@@ -15,7 +25,15 @@ const READ_LIMIT = 200;
 const fail = (error: string, status: number) => Response.json({ error }, { status });
 
 const clean = (value: unknown, cap: number) =>
-  typeof value === "string" ? value.replace(/[\u0000-\u001f\u007f]/g, "").trim().slice(0, cap) : "";
+  typeof value === "string"
+    // keep newlines — the note is a transcript and reads as one — drop the rest
+    ? value
+        .replace(/\r\n?/g, "\n")
+        .replace(/[\u0000-\u0009\u000b-\u001f\u007f]/g, "")
+        .replace(/\n{3,}/g, "\n\n")
+        .trim()
+        .slice(0, cap)
+    : "";
 
 /** POST /api/feedback — a note from a player, with whatever the game knew. */
 export async function POST(request: Request) {
@@ -51,6 +69,16 @@ export async function POST(request: Request) {
 
   // the same cookie the towns API uses — not an identity, just a thread to pull
   const viewer = await currentViewer();
+  const address = await ipHash(request);
+
+  /* Anyone on the internet can reach this, so count what they have already
+     sent. Both handles are weak on their own; the stricter one wins. */
+  if (address && (await feedbackFromAddress(db, address, since(HOUR))) >= LIMITS.feedbackPerHourPerAddress) {
+    return tooMany("feedback");
+  }
+  if (viewer && (await feedbackFromPlayer(db, viewer.ownerId, since(DAY))) >= LIMITS.feedbackPerDayPerPlayer) {
+    return tooMany("feedback", 3600);
+  }
 
   await db.insert(feedback).values({
     id: `f${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`,
@@ -59,6 +87,7 @@ export async function POST(request: Request) {
     message,
     context,
     playerId: viewer?.ownerId ?? null,
+    ipHash: address,
     createdAt: new Date().toISOString(),
   });
 
@@ -69,19 +98,35 @@ export async function POST(request: Request) {
  * GET /api/feedback?key=… — read it back.
  *
  * There are no accounts yet, so this is gated on a shared secret rather than on
- * who you are. Set FEEDBACK_KEY in the environment; with it unset nobody can
- * read what players wrote, including you.
+ * who you are — the same ADMIN_KEY the moderation routes use. With it unset
+ * nobody can read what players wrote, including you.
  */
 export async function GET(request: Request) {
-  const expected = process.env.FEEDBACK_KEY;
-  if (!expected) return fail("Set FEEDBACK_KEY to read feedback", 503);
+  const expected = process.env.ADMIN_KEY;
+  if (!expected || expected.length < 16) {
+    return fail("Set ADMIN_KEY (16 characters or more) to read feedback", 503);
+  }
   const key = new URL(request.url).searchParams.get("key");
   if (key !== expected) return fail("Not found", 404);
 
   const db = await getAnyDb();
   if (!db) return fail("Feedback needs a database — set TURSO_DATABASE_URL, then run the migration", 503);
 
-  const rows = await db.select().from(feedback).orderBy(desc(feedback.createdAt)).limit(READ_LIMIT);
+  /* the address hash exists for rate limiting and nothing else — no reason to
+     hand it back out again */
+  const rows = await db
+    .select({
+      id: feedback.id,
+      game: feedback.game,
+      rating: feedback.rating,
+      message: feedback.message,
+      context: feedback.context,
+      playerId: feedback.playerId,
+      createdAt: feedback.createdAt,
+    })
+    .from(feedback)
+    .orderBy(desc(feedback.createdAt))
+    .limit(READ_LIMIT);
   return Response.json({
     count: rows.length,
     items: rows.map((row) => ({
