@@ -408,6 +408,7 @@ export default function Home() {
           <a href="/frontier.html">Frontier RPG</a>
           <a href="/worldforge.html">Open World</a>
           <a href="/infinite-plots.html">Infinite Plots</a>
+          <a href="/gallery">Gallery</a>
         </div>
         <span className="beta-pill">Early Builder Access · All pieces unlocked</span>
       </nav>
@@ -544,7 +545,7 @@ export default function Home() {
             <h3>Build Your Dream Cities</h3>
             <p>Create towns and landmark worlds, enter solo or team build challenges, publish finished cities and earn community likes.</p>
             <ul><li>Guided and free building live</li><li>Showcase worlds live</li><li>Team contests, rankings and publishing next</li></ul>
-            <div className="universe-actions"><button onClick={() => begin("free")}>Build a city</button><a href="#world-gallery-title">Explore demos</a></div>
+            <div className="universe-actions"><button onClick={() => begin("free")}>Build a city</button><a href="/gallery">See the gallery</a></div>
           </article>
           <article className="universe-card frontier-card">
             <div className="universe-topline"><span>Settlement RPG</span><b>Playable</b></div>
