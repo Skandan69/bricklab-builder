@@ -14,11 +14,32 @@ import {
   isVoterId,
   newTownId,
 } from "./shared";
-import { HOUR, LIMITS, ipHash, since, tooMany, townsFromAddress, townsOwnedBy } from "../limits";
+import { HOUR, LIMITS, ipHash, limitsSchemaReady, since, tooMany, townsFromAddress, townsOwnedBy } from "../limits";
 
 export const dynamic = "force-dynamic";
 
-type TownRow = typeof towns.$inferSelect;
+/* Every column the app actually uses, named explicitly.
+   A bare `.select()` expands to every column in the Drizzle schema, so the
+   moment the schema gained `ip_hash` the list endpoint started asking a
+   not-yet-migrated database for a column it did not have — a 500 on a public
+   route. Naming the columns keeps code and schema independent, and stops the
+   address hash leaving the server by accident. */
+const TOWN_COLUMNS = {
+  id: towns.id,
+  ownerId: towns.ownerId,
+  ownerName: towns.ownerName,
+  name: towns.name,
+  data: towns.data,
+  brickCount: towns.brickCount,
+  thumb: towns.thumb,
+  visibility: towns.visibility,
+  createdAt: towns.createdAt,
+  updatedAt: towns.updatedAt,
+};
+
+/* The address hash is for rate limiting and nothing else, so it is not part
+   of the row shape the rest of this file works with. */
+type TownRow = Omit<typeof towns.$inferSelect, "ipHash">;
 
 /** Everything a gallery card needs — never the full town payload. */
 function card(row: TownRow, likes: number, liked: boolean, mine: boolean) {
@@ -79,7 +100,7 @@ export async function GET(request: Request) {
   const db = await getAnyDb();
   if (!db) return storageUnavailable();
   const rows = await db
-    .select()
+    .select(TOWN_COLUMNS)
     .from(towns)
     .where(scope === "mine" ? eq(towns.ownerId, viewer!.ownerId) : eq(towns.visibility, "public"))
     .orderBy(desc(towns.updatedAt))
@@ -120,7 +141,7 @@ export async function POST(request: Request) {
 
   if (body.id !== undefined && body.id !== null && body.id !== "") {
     if (!isTownId(body.id)) return fail("Invalid town id", 400);
-    const [existing] = await db.select().from(towns).where(eq(towns.id, body.id)).limit(1);
+    const [existing] = await db.select(TOWN_COLUMNS).from(towns).where(eq(towns.id, body.id)).limit(1);
     if (!existing) return fail("Town not found", 404);
     if (existing.ownerId !== viewer.ownerId) return fail("This town belongs to someone else", 403);
 
@@ -152,10 +173,14 @@ export async function POST(request: Request) {
   }
 
   const id = newTownId();
+  /* Naming ip_hash in the insert fails outright until 0003_limits has run, so
+     only send the column once the schema is known to have it. Saving a town
+     matters more than counting it. */
+  const schemaReady = await limitsSchemaReady(db);
   await db.insert(towns).values({
     id,
     ownerId: viewer.ownerId,
-    ipHash: address,
+    ...(schemaReady ? { ipHash: address } : {}),
     ownerName: viewer.ownerName,
     name,
     data: checked.text,
