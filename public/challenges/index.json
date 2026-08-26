@@ -49,6 +49,106 @@
       "pieces": 32,
       "file": "/challenges/station.json",
       "image": "/challenges/station.webp"
+    },
+    {
+      "id": "well",
+      "name": "The Village Well",
+      "brief": "A round grey well with four brown posts and a small red roof over it.",
+      "difficulty": 1,
+      "seconds": 240,
+      "pieces": 16,
+      "file": "/challenges/well.json",
+      "image": "/challenges/well.webp"
+    },
+    {
+      "id": "gardengate",
+      "name": "Garden Gate",
+      "brief": "A white gateway with a green hedge on each side and a yellow lamp on top.",
+      "difficulty": 2,
+      "seconds": 240,
+      "pieces": 17,
+      "file": "/challenges/gardengate.json",
+      "image": "/challenges/gardengate.webp"
+    },
+    {
+      "id": "watchtower",
+      "name": "Watchtower",
+      "brief": "A round grey tower six bricks high, with a wider dark top and a lamp.",
+      "difficulty": 3,
+      "seconds": 300,
+      "pieces": 12,
+      "file": "/challenges/watchtower.json",
+      "image": "/challenges/watchtower.webp"
+    },
+    {
+      "id": "market",
+      "name": "Market Row",
+      "brief": "Three stalls side by side with red, yellow and blue awnings.",
+      "difficulty": 3,
+      "seconds": 360,
+      "pieces": 18,
+      "file": "/challenges/market.json",
+      "image": "/challenges/market.webp"
+    },
+    {
+      "id": "pavilion",
+      "name": "Garden Pavilion",
+      "brief": "A white chhatri standing on a two-step sandstone plinth with a lamp at each corner.",
+      "difficulty": 4,
+      "seconds": 360,
+      "pieces": 13,
+      "file": "/challenges/pavilion.json",
+      "image": "/challenges/pavilion.webp"
+    },
+    {
+      "id": "office",
+      "name": "Glass Office",
+      "brief": "A dark podium under a blue glass tower, with rooftop plant and a mast.",
+      "difficulty": 4,
+      "seconds": 360,
+      "pieces": 5,
+      "file": "/challenges/office.json",
+      "image": "/challenges/office.webp"
+    },
+    {
+      "id": "crossing",
+      "name": "Level Crossing",
+      "brief": "A road crossing a railway, with a signal on one side and a lamp on the other.",
+      "difficulty": 4,
+      "seconds": 360,
+      "pieces": 12,
+      "file": "/challenges/crossing.json",
+      "image": "/challenges/crossing.webp"
+    },
+    {
+      "id": "shrine",
+      "name": "Temple Shrine",
+      "brief": "A granite spire on a stepped plinth, with a pillared hall in front of it.",
+      "difficulty": 5,
+      "seconds": 480,
+      "pieces": 29,
+      "file": "/challenges/shrine.json",
+      "image": "/challenges/shrine.webp"
+    },
+    {
+      "id": "fountain",
+      "name": "Fountain Court",
+      "brief": "A fountain in the middle, four green beds on the diagonals, a bench on each side.",
+      "difficulty": 5,
+      "seconds": 420,
+      "pieces": 13,
+      "file": "/challenges/fountain.json",
+      "image": "/challenges/fountain.webp"
+    },
+    {
+      "id": "clocktower",
+      "name": "Clock Tower",
+      "brief": "A tall tan tower banded in white, with a clock near the top and a lamp above it.",
+      "difficulty": 6,
+      "seconds": 540,
+      "pieces": 68,
+      "file": "/challenges/clocktower.json",
+      "image": "/challenges/clocktower.webp"
     }
   ]
 }
