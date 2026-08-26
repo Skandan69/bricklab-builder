@@ -19,10 +19,16 @@ export async function getAnyDb(): Promise<BrickLabDb | null> {
        A `file:` URL is for running the real routes against a real database
        locally, and needs the node client instead. */
     const local = url.startsWith("file:");
-    const [{ drizzle }, { createClient }] = await Promise.all([
-      import("drizzle-orm/libsql"),
-      local ? import("@libsql/client") : import("@libsql/client/web"),
-    ]);
+    const { drizzle } = await import("drizzle-orm/libsql");
+    /* Two separate awaits rather than a ternary inside Promise.all, which
+       reads better and keeps the two drivers apart.
+       Worth knowing: the production bundle aliases the bare specifier to the
+       web build, so a `file:` URL will not work against a built server — only
+       against a real libsql endpoint. Local testing of these routes has to go
+       through the dev server or straight at the database. */
+    let createClient;
+        if (local) ({ createClient } = await import("@libsql/client"));
+    else ({ createClient } = await import("@libsql/client/web"));
     const client = createClient({ url, authToken: process.env.TURSO_AUTH_TOKEN });
     return drizzle(client, { schema }) as unknown as BrickLabDb;
   }
