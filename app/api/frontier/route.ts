@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { getAnyDb, storageUnavailable } from "../../../db/client";
 import { towns } from "../../../db/schema";
 import { hashId } from "../towns/identity";
@@ -155,18 +155,36 @@ export async function POST(request: Request) {
     if (recent >= LIMITS.townsPerHourPerAddress) return tooMany("new worlds");
   }
 
-  await db.insert(towns).values({
-    id,
-    ownerId: owner,
-    ownerName: "Frontier player",
-    name: cleanName(name, "A frontier"),
-    data: checked.text,
-    brickCount: checked.blocks,
-    thumb: null,
-    visibility: "private",
-    createdAt: now,
-    updatedAt: now,
-    ...(ip ? { ipHash: ip } : {}),
-  });
+  const worldName = cleanName(name, "A frontier");
+
+  /* Drizzle names every column in the schema on an insert, `ip_hash` included,
+     so on a database where 0003_limits has not been applied yet the statement
+     fails on a column that is not there. The towns route next door already
+     carries a hand-written fallback for exactly this; a Frontier save needs the
+     same one, or saving 500s everywhere the migration is behind the deploy —
+     which is precisely what production did. */
+  if (ready) {
+    await db.insert(towns).values({
+      id,
+      ownerId: owner,
+      ownerName: "Frontier player",
+      name: worldName,
+      data: checked.text,
+      brickCount: checked.blocks,
+      thumb: null,
+      visibility: "private",
+      createdAt: now,
+      updatedAt: now,
+      ipHash: ip,
+    });
+  } else {
+    await db.run(sql`
+      insert into towns
+        (id, owner_id, owner_name, name, data, brick_count, thumb, visibility, created_at, updated_at)
+      values
+        (${id}, ${owner}, ${"Frontier player"}, ${worldName}, ${checked.text},
+         ${checked.blocks}, ${null}, ${"private"}, ${now}, ${now})
+    `);
+  }
   return Response.json({ ok: true, created: true, updatedAt: now });
 }
