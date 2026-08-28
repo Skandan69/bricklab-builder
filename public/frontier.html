@@ -149,6 +149,55 @@
   .title-art::after{content:'';position:absolute;inset:0;pointer-events:none;
     background:linear-gradient(180deg,rgba(8,14,22,0) 42%,rgba(8,14,22,.72) 100%)}
   .title-art-label{z-index:2}
+  /* ------------------------------------------------------- touch controls
+     A phone has no pointer lock and no WASD, so every verb gets a thumb:
+     a stick on the left, the actions on the right, menus along the top. */
+  #touchui{position:fixed;inset:0;z-index:15;pointer-events:none;
+    font:600 12px/1 ui-sans-serif,system-ui,sans-serif}
+  #touchui>*{pointer-events:auto}
+  .tpad{position:absolute;left:16px;bottom:84px;width:132px;height:132px;border-radius:50%;
+    background:radial-gradient(circle,rgba(255,255,255,.14),rgba(10,18,28,.5));
+    border:1px solid var(--line);backdrop-filter:blur(6px);touch-action:none}
+  .tknob{position:absolute;left:50%;top:50%;width:56px;height:56px;margin:-28px 0 0 -28px;
+    border-radius:50%;background:linear-gradient(160deg,#dff0ff,#7cc4ff);
+    box-shadow:0 6px 18px rgba(0,0,0,.42)}
+  .tbtns{position:absolute;right:14px;bottom:80px;display:grid;
+    grid-template-columns:72px 72px;gap:10px;justify-items:center;touch-action:none}
+  .tbtn{width:72px;height:72px;border-radius:50%;display:grid;place-items:center;
+    background:rgba(14,21,32,.74);border:1px solid var(--line);backdrop-filter:blur(6px);
+    color:#eef4fb;font-size:11px;text-align:center;line-height:1.15;touch-action:none;
+    -webkit-tap-highlight-color:transparent;user-select:none}
+  .tbtn b{display:block;font-size:21px;margin-bottom:2px;font-weight:400}
+  .tbtn:active{background:rgba(124,196,255,.34);border-color:var(--hi);transform:scale(.94)}
+  .tbtn.wide{grid-column:span 2;width:154px;height:54px;border-radius:27px}
+  .tbtn.wide b{display:inline;font-size:15px;margin:0 6px 0 0}
+  .tmenu{position:absolute;right:6px;top:50%;transform:translateY(-50%);display:flex;flex-direction:column;gap:5px;
+    padding:5px;background:var(--panel);border:1px solid var(--line);border-radius:16px;touch-action:none}
+  .tmenu button{padding:8px;font-size:17px;border-radius:11px;line-height:1;min-width:40px}
+  /* the phone layout: nothing sits where a thumb has to be */
+  body.touch canvas{touch-action:none}
+  body.touch #stats{display:none!important}
+  body.touch #hint{top:62px}
+  body.touch #rpgHud{left:8px;top:64px;bottom:auto;width:min(186px,47vw);padding:8px 10px}
+  body.touch #rpgHud .rpgTop{flex-wrap:wrap;gap:3px 8px;margin-bottom:5px}
+  body.touch #rpgHud .rpgTop b{font-size:10px;letter-spacing:.2px}
+  body.touch #rpgHud .rpgTop span{font-size:10px}
+  body.touch #vitals{right:58px;top:64px;min-width:96px;max-width:120px;padding:6px 8px}
+  body.touch #vitals label{font-size:9px}
+  body.touch #vitals .muted{font-size:9px;line-height:1.3}
+  body.touch #interact{bottom:228px;font-size:11px}
+  body.touch #hotbar{bottom:4px;left:0;right:100px;transform:none;justify-content:flex-start;
+    border-radius:0 12px 12px 0;border-left:0;overflow-x:auto;padding:5px 8px;scrollbar-width:none}
+  body.touch #hotbar::-webkit-scrollbar{display:none}
+  body.touch .slot{width:46px;height:46px;flex:0 0 auto}
+  body.touch .slot .swatch{width:26px;height:26px}
+  body.touch .slot small{display:none}
+  body.touch .count{right:3px;bottom:1px;font-size:10px}
+  @media (max-height:520px){
+    .tpad{width:104px;height:104px;bottom:72px}.tknob{width:44px;height:44px;margin:-22px 0 0 -22px}
+    .tbtn{width:58px;height:58px;font-size:10px}.tbtn.wide{width:126px;height:44px}
+    body.touch #rpgHud{display:none}
+  }
 </style>
 </head>
 <body>
@@ -178,6 +227,22 @@
 </div>
 <div id="hotbar" class="hidden"></div>
 <div id="interact" class="hidden">R · Talk to settler</div>
+<div id="touchui" class="hidden">
+  <div class="tmenu">
+    <button data-t="bag" aria-label="Backpack">&#127890;</button>
+    <button data-t="journal" aria-label="Quest journal">&#128214;</button>
+    <button data-t="trade" aria-label="Trading post">&#127978;</button>
+    <button data-t="map" aria-label="Map">&#128506;</button>
+    <button data-t="talk" aria-label="Talk, read or open">&#128172;</button>
+    <button data-t="fly" aria-label="Toggle flight">&#128331;</button>
+  </div>
+  <div class="tpad" id="tpad"><div class="tknob" id="tknob"></div></div>
+  <div class="tbtns">
+    <div class="tbtn" id="tmine"><b>&#9935;</b>Mine</div>
+    <div class="tbtn" id="tplace"><b>&#129521;</b>Place</div>
+    <div class="tbtn wide" id="tjump"><b>&#11014;</b>Jump</div>
+  </div>
+</div>
 <div id="panel">
   <div class="card" id="card"></div>
 </div>
@@ -547,6 +612,12 @@ const player = {
 };
 const keys = new Set();
 let pointerLocked = false;
+/* A phone reports a coarse primary pointer and has no pointer lock at all, so
+   every gate that used to demand pointer lock has to accept touch instead.
+   ?touch=1 forces the layout on so it can be checked from a desktop. */
+const TOUCH = (typeof matchMedia === 'function' ? matchMedia('(pointer: coarse)').matches : (navigator.maxTouchPoints || 0) > 0)
+  || /[?&]touch=1/.test(location.search);
+const touchMove = { x: 0, y: 0 };
 function blockedAt(x, y, z) {
   const id = getBlock(Math.floor(x), Math.floor(y), Math.floor(z));
   return isSolid(id);
@@ -693,6 +764,8 @@ const RPG_QUESTS = [
   { ch:4, id:'surplus', title:'Surplus to the post', detail:'Sell 20 items to Arun', kind:'sell', target:20, xp:80, coins:0, reqTier:2 },
   { ch:4, id:'traveller', title:'The traveller', detail:'Buy something from Sana the travelling merchant (every third day)', kind:'merchant', target:1, xp:90, coins:15, reqTier:2 },
   { ch:4, id:'walls', title:'Raise the walls', detail:'Place 40 building blocks', kind:'place', target:40, xp:120, coins:30, reqTier:2 },
+  { ch:4, id:'district', title:'Lay out the district', detail:'Place 60 more building blocks', kind:'place', target:60, xp:140, coins:35, reqTier:2 },
+  { ch:4, id:'towntier', title:'A town worth the name', detail:'Grow the settlement all the way to Town', kind:'tier', tier:3, target:1, xp:200, coins:60, reqTier:2 },
   /* chapter 5 — The Old Frontier */
   { ch:5, id:'sixwords', title:'The six voices', detail:'Read 3 more lore tablets scattered across the frontier', kind:'read', target:3, xp:150, coins:30, reqTier:3 },
   { ch:5, id:'door', title:'Behind the old door', detail:'Open the vault with the crystal key', kind:'vault', target:1, xp:200, coins:50, reqTier:3 },
@@ -742,6 +815,7 @@ function buyPerk(id) {
   rpg.perkPts -= 1;
   rpg.perks[id] = perkRank(id) + 1;
   say(perk.name + ' rank ' + rpg.perks[id]);
+  markProgress();
   drawRpgHud();
   return true;
 }
@@ -752,6 +826,16 @@ function armorTotal() {
   return (head ? BLOCKS[head].armor : 0) + (body ? BLOCKS[body].armor : 0);
 }
 const xpNeeded = (level) => 70 + (level - 1) * 45;
+/* The old gate just said "the story waits" and left players to guess what for.
+   These are the only two numbers that move a settlement up a tier, so show them. */
+function tierShortfall(tier) {
+  const need = SETTLEMENT_TIERS[tier];
+  if (!need) return 'Ready to continue';
+  const bits = [];
+  if ((rpg.placed || 0) < need.placed) bits.push((need.placed - (rpg.placed || 0)) + ' more blocks placed');
+  if (jobsDone() < need.jobs) bits.push((need.jobs - jobsDone()) + ' more settlement jobs');
+  return bits.length ? 'Grow to ' + need.name + ' · ' + bits.join(' · ') : 'Ready to continue';
+}
 function drawRpgHud() {
   const quest = RPG_QUESTS[rpg.questIndex];
   document.getElementById('rpgLevel').textContent = 'Builder level ' + rpg.level;
@@ -760,9 +844,11 @@ function drawRpgHud() {
   document.getElementById('rpgSettlement').textContent = tier.name + (raid.active ? ' · under raid' : '');
   document.getElementById('rpgXp').style.width = Math.min(100, rpg.xp / xpNeeded(rpg.level) * 100) + '%';
   document.getElementById('rpgQuest').textContent = quest ? quest.title : 'Frontier founder';
-  document.getElementById('rpgQuestProgress').textContent = quest
-    ? quest.detail + ' · ' + Math.min(rpg.questProgress, quest.target) + ' / ' + quest.target
-    : 'Chapter one complete · keep building your settlement';
+  const gated = quest && (quest.reqTier || 0) > settlementTier();
+  document.getElementById('rpgQuestProgress').textContent = !quest
+    ? 'Every chapter closed · the frontier is yours to build'
+    : gated ? tierShortfall(quest.reqTier)
+    : quest.detail + ' · ' + Math.min(rpg.questProgress, quest.target) + ' / ' + quest.target;
 }
 function addXp(amount) {
   rpg.xp += amount;
@@ -771,8 +857,21 @@ function addXp(amount) {
     rpg.level += 1;
     rpg.perkPts = (rpg.perkPts || 0) + 1;
     say('Builder level ' + rpg.level + ' · +1 perk point (open the journal)');
+    markProgress();
   }
   drawRpgHud();
+}
+/* Levelling up and then closing the tab used to cost the level: the only
+   durable moments were the 45s autosave boundary and page hide. The events a
+   player would actually mourn now save themselves, throttled so that laying
+   bricks does not thrash storage. */
+let progressSaveAt = 0;
+function markProgress() {
+  if (panelMode === 'title') return;
+  const now = Date.now();
+  if (now - progressSaveAt < 6000) return;
+  progressSaveAt = now;
+  saveWorld(true);
 }
 function questEvent(kind, block, amount) {
   const quest = RPG_QUESTS[rpg.questIndex];
@@ -792,8 +891,19 @@ function questEvent(kind, block, amount) {
       if (chap) say('— Chapter ' + chap.n + ': ' + chap.name + ' —');
     }
     if (!next) say('The frontier keeps its last secret no longer. Epilogue in the journal.');
+    markProgress();
   }
   drawRpgHud();
+}
+/* questIndex was a raw array position, so adding a single quest to RPG_QUESTS
+   moved every saved player onto somebody else's objective. Rebuild it from the
+   ids they have actually finished and new quests can be slotted in anywhere
+   without touching a save. */
+function repairQuestIndex() {
+  const done = new Set(rpg.completed || []);
+  let i = 0;
+  while (i < RPG_QUESTS.length && done.has(RPG_QUESTS[i].id)) i++;
+  if (i !== rpg.questIndex) { rpg.questIndex = i; rpg.questProgress = 0; }
 }
 const SETTLEMENT_JOBS = [
   { id:'mira-foundation', settler:'Mira', role:'Architect', title:'Foundation supplies', detail:'Deliver 8 cobble for the first workshop.', need:[[4,8]], xp:35, coins:18 },
@@ -1013,7 +1123,7 @@ function openJournal() {
       const done = RPG_QUESTS.filter((q2) => q2.ch === (quest ? quest.ch : 5) && rpg.completed.includes(q2.id)).length;
       const inCh = RPG_QUESTS.filter((q2) => q2.ch === (quest ? quest.ch : 5)).length;
       const gate = quest && (quest.reqTier || 0) > settlementTier()
-        ? '<small style="color:#ffd166">The story waits — grow the settlement to ' + SETTLEMENT_TIERS[quest.reqTier].name + ' first.</small>' : '';
+        ? '<small style="color:#ffd166">The story waits — ' + tierShortfall(quest.reqTier) + '.</small>' : '';
       return `<h2>Chapter ${chap.n} · ${chap.name} <span class="muted" style="font-weight:400">${done}/${inCh}</span></h2>
       <p class="muted" style="font-style:italic">${chap.intro}</p>
       <div class="settler-card"><b>${quest ? 'Current quest' : 'Epilogue'}</b><strong>${quest ? quest.title : 'The frontier is yours'}</strong><small>${quest ? quest.detail + ' · ' + rpg.questProgress + '/' + quest.target : 'Every voice read, every door opened, every raid held. What you build now, you build for its own sake.'}</small>${gate}</div>`;
@@ -1158,7 +1268,7 @@ let breaking = null;                  // {x,y,z,id,progress,total}
 let swingCooldown = 0;
 function updateBreaking(dt) {
   swingCooldown -= dt;
-  if (!mouseDown || !pointerLocked) { breaking = null; cracks.visible = false; return; }
+  if (!mouseDown || !(pointerLocked || TOUCH)) { breaking = null; cracks.visible = false; return; }
   const creature = mobInReach();
   if (creature) {
     if (swingCooldown <= 0) { swingCooldown = 0.42; hitMob(creature); }
@@ -1468,7 +1578,7 @@ function closePanel() {
   panel.classList.add('hidden');
   panelMode = 'none';
   lastSettlerPrompt = '__refresh__';
-  renderer.domElement.requestPointerLock();
+  if (!TOUCH) renderer.domElement.requestPointerLock();
 }
 /* ----------------------------------------------------------- chunk stream */
 function streamChunks() {
@@ -1506,7 +1616,7 @@ function streamChunks() {
 /* ------------------------------------------------------------------ input */
 let mouseDown = false;
 renderer.domElement.addEventListener('mousedown', (e) => {
-  if (!pointerLocked) { renderer.domElement.requestPointerLock(); return; }
+  if (!pointerLocked && !TOUCH) { renderer.domElement.requestPointerLock(); return; }
   if (e.button === 0) mouseDown = true;
   if (e.button === 2) placeBlock();
 });
@@ -1727,6 +1837,7 @@ function saveWorld(quiet) {
   }
 }
 function applyPayload(d) {
+  pendingAwayMs = Number.isFinite(d.savedAt) ? Math.max(0, Date.now() - d.savedAt) : 0;
   SEED = d.seed;
   clock = d.clock ?? clock;
   territory = d.territory || TERRITORY_START;
@@ -1736,6 +1847,7 @@ function applyPayload(d) {
   if (Number.isFinite(d.pitch)) player.pitch = d.pitch;
   player.health = d.health ?? 20; player.food = d.food ?? 20;
   rpg = d.rpg ? { ...freshRpg(), ...d.rpg, completed:[...(d.rpg.completed || [])], jobs:{...(d.rpg.jobs || {})} } : freshRpg();
+  repairQuestIndex();
   pouches.length = 0;
   (d.pouches || []).forEach((p) => pouches.push({ ...p }));
   inventory.clear(); (d.inventory || []).forEach(([id, n]) => inventory.set(id, n));
@@ -1906,7 +2018,7 @@ function drawSettlerPrompt() {
   lastSettlerPrompt=next;
   const el=document.getElementById('interact');
   el.classList.toggle('hidden',!next);
-  if(nearby)el.textContent='R · Talk to '+nearby.spec.name+' — '+nearby.spec.role;
+  if(nearby)el.textContent=(TOUCH?'💬 ':'R · ')+'Talk to '+nearby.spec.name+' — '+nearby.spec.role;
 }
 /* ------------------------------------------------------ the old frontier
    Every world hides the same story in different places: a rescue camp, two
@@ -2026,6 +2138,7 @@ function tryVaultDoor(x, y, z) {
   questEvent('vault', 0, 1);
   addXp(80);
   say('The vault opens — the first settlers kept their promise · +60 marks');
+  markProgress();
   return true;
 }
 const MOBS = {
@@ -2248,6 +2361,67 @@ function onNewDay(day) {
   });
   if (merchantHere()) say('Sana the traveller has set up by the trading post (day ' + (day + 1) + ')');
   drawRpgHud();
+}
+/* --------------------------------------------------- the town without you
+   Every clock in this game is play-time, so closing the tab used to freeze the
+   settlement in amber and nothing ever brought a player back tomorrow. Dawns
+   now accrue from the wall clock while you are away. Deliberately never
+   destructive: coming home should be a reward, not a bill. */
+const AWAY_DAWN_MS = 45 * 60 * 1000;   // 45 real minutes is one dawn
+const AWAY_DAWN_CAP = 12;              // ~9 hours away pays in full; sleeping is enough
+let pendingAwayMs = 0;
+let awayReport = null;
+function runAwayDawns(dawns) {
+  const gains = new Map();
+  const who = [];
+  const crew = rosterSpecs().length;
+  let guards = 0;
+  Object.entries(rpg.assigns || {}).forEach(([sid, station]) => {
+    const spec = rosterSpecs().find((sp) => sp.id === sid);
+    if (!spec) return;
+    if (station === 22) { gains.set(15, (gains.get(15) || 0) + 2 * dawns); who.push([spec.name, 'worked the bench']); }
+    else if (station === 46) { gains.set(32, (gains.get(32) || 0) + dawns); who.push([spec.name, 'worked the fields']); }
+    else if (station === 45) { guards += 1; who.push([spec.name, 'stood the watch']); }
+  });
+  const earned = guards * 2 * dawns;
+  /* wages can empty the purse but never put it in the red — a player should
+     not come back to a debt they cannot see coming */
+  const wages = crew > 3 ? Math.min(rpg.coins + earned, (crew - 3) * dawns) : 0;
+  gains.forEach((n, id) => give(id, n));
+  rpg.coins = Math.max(0, rpg.coins + earned - wages);
+  awayReport = { dawns, gains: [...gains.entries()], who, earned, wages, idle: !gains.size && !guards };
+  drawRpgHud();
+  return awayReport;
+}
+function openAwayReport() {
+  const r = awayReport;
+  if (!r) return false;
+  awayReport = null;
+  card.className = 'card';
+  panelMode = 'away';
+  const nights = r.dawns === 1 ? 'One night' : r.dawns + ' nights';
+  const haul = r.gains.map(([id, n]) => n + ' ' + BLOCKS[id].name.toLowerCase()).join(' · ');
+  card.innerHTML =
+    '<h1>While you were away</h1>' +
+    '<p class="muted">' + nights + ' passed on the frontier.</p>' +
+    (r.idle
+      ? '<p>The settlement kept itself alive — but nobody was on duty, so nothing was made.</p>' +
+        '<div class="settler-card"><b>Put your crew to work</b><small>Open the journal, pick a settler and press <b>Change duty</b>. ' +
+        'Someone at the workshop makes planks every dawn, someone in the fields brings rations, someone on watch earns their keep fighting raiders — ' +
+        'and they keep at it even while you are gone.</small></div>'
+      : '<p>Your crew carried on without you.</p>' +
+        '<div class="settler-grid">' + r.who.map(([n, d]) =>
+          '<div class="settler-card"><b>' + n + '</b><small>' + d + '</small></div>').join('') + '</div>' +
+        '<div class="settler-card"><b>Waiting in the stores</b><strong>' + (haul || 'no goods this time') + '</strong>' +
+        (r.earned ? '<small>+' + r.earned + ' marks earned on watch</small>' : '') +
+        (r.wages ? '<small>' + String.fromCharCode(8722) + r.wages + ' marks paid out in wages</small>' : '') + '</div>') +
+    '<div class="row"><button class="primary" id="btnAway">Back to the frontier</button>' +
+    '<button id="btnAwayJournal">Open the journal</button></div>';
+  document.getElementById('btnAway').onclick = closePanel;
+  document.getElementById('btnAwayJournal').onclick = openJournal;
+  panel.classList.remove('hidden');
+  document.exitPointerLock && document.exitPointerLock();
+  return true;
 }
 function updateRaid(dt) {
   const night = isNight();
@@ -2475,8 +2649,13 @@ function checkTier() {
     if (t === 2 && !(rpg.rescued || []).includes('kavya')) { rpg.rescued.push('kavya'); spawnSettlers(); say('Kavya the farmer has joined the settlement'); }
     if (t === 3 && !(rpg.rescued || []).includes('tara'))  { rpg.rescued.push('tara');  spawnSettlers(); say('Tara the healer has joined the settlement'); }
     say('— The settlement is now a ' + SETTLEMENT_TIERS[t].name.toUpperCase() + ' —');
+    markProgress();
     questEvent('tier', 0, 1);
   }
+  /* a tier objective reached before it was handed out would otherwise never
+     be completable, and the chapter would dead-end */
+  const q = RPG_QUESTS[rpg.questIndex];
+  if (q && q.kind === 'tier' && t >= (q.tier || 1)) questEvent('tier', 0, 1);
 }
 let prospectSaid = 0;
 function pulseProspector() {
@@ -2493,7 +2672,9 @@ function pulseProspector() {
 }
 let streamTimer = 0, lastStreamCx = Infinity, lastStreamCz = Infinity;
 function physics(dt) {
-  const speed = (player.fly ? 16 : keys.has('shift') ? 8.2 : 5.2);
+  const tmag = Math.hypot(touchMove.x, touchMove.y);
+  /* pushing the stick to its rim is the phone's sprint */
+  const speed = (player.fly ? 16 : (keys.has('shift') || tmag > 0.86) ? 8.2 : 5.2);
   const forward = new THREE.Vector3(-Math.sin(player.yaw), 0, -Math.cos(player.yaw));
   const right = new THREE.Vector3(Math.cos(player.yaw), 0, -Math.sin(player.yaw));
   const wish = new THREE.Vector3();
@@ -2501,6 +2682,10 @@ function physics(dt) {
   if (keys.has('s')) wish.sub(forward);
   if (keys.has('d')) wish.add(right);
   if (keys.has('a')) wish.sub(right);
+  if (tmag > 0.06) {
+    wish.add(forward.clone().multiplyScalar(-touchMove.y));
+    wish.add(right.clone().multiplyScalar(touchMove.x));
+  }
   if (wish.lengthSq()) wish.normalize().multiplyScalar(speed);
   if (player.fly) {
     let vy = 0;
@@ -2543,6 +2728,7 @@ function frame(now) {
   requestAnimationFrame(frame);
   const dt = Math.min(0.05, (now - last) / 1000);
   last = now;
+  syncTouchUI();
   if (panelMode === 'title') { renderer.render(scene, camera); return; }
   /* a panel is open: the world pauses. Without this the player kept walking,
      drowning and taking mob damage while reading the journal. */
@@ -2633,8 +2819,16 @@ function startGame(fresh) {
   lastSettlerPrompt = '__refresh__';
   ['stats', 'vitals', 'rpgHud', 'hotbar'].forEach((id) => document.getElementById(id).classList.remove('hidden'));
   drawHotbar(); drawVitals(); drawRpgHud();
-  renderer.domElement.requestPointerLock();
+  if (!TOUCH) renderer.domElement.requestPointerLock();
   noteDiscovery();
+  const awayDawns = Math.min(AWAY_DAWN_CAP, Math.floor(pendingAwayMs / AWAY_DAWN_MS));
+  pendingAwayMs = 0;
+  if (!fresh && awayDawns > 0) {
+    runAwayDawns(awayDawns);
+    saveWorld(true);          /* bank it now, or a reload re-claims the same dawns */
+    openAwayReport();
+    return;
+  }
   say('Left click and hold to mine · E for the bag · M for the map · R reads stones and doors');
 }
 /* Progress used to be durable only at the 45s autosave boundary — close the
@@ -2651,6 +2845,113 @@ addEventListener('pageshow', () => { savedOnExit = false; });
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'hidden') saveOnExit(); else savedOnExit = false;
 });
+/* ------------------------------------------------------- touch controls */
+let touchUIOn = null;
+function syncTouchUI() {
+  if (!TOUCH) return;
+  const on = panelMode === 'none';
+  if (on === touchUIOn) return;
+  touchUIOn = on;
+  document.getElementById('touchui').classList.toggle('hidden', !on);
+  /* pointerlockchange never fires on a phone, so the crosshair is ours to show */
+  document.getElementById('crosshair').classList.toggle('hidden', !on);
+}
+function setupTouch() {
+  if (!TOUCH) return;
+  document.body.classList.add('touch');
+  const pad = document.getElementById('tpad'), knob = document.getElementById('tknob');
+  const RADIUS = 46;
+  let padId = null, px = 0, py = 0;
+  const setKnob = (dx, dy) => {
+    knob.style.transform = 'translate(' + (dx * RADIUS).toFixed(1) + 'px,' + (dy * RADIUS).toFixed(1) + 'px)';
+    touchMove.x = dx; touchMove.y = dy;
+  };
+  const steer = (t) => {
+    let dx = (t.clientX - px) / RADIUS, dy = (t.clientY - py) / RADIUS;
+    const m = Math.hypot(dx, dy);
+    if (m > 1) { dx /= m; dy /= m; }
+    setKnob(dx, dy);
+  };
+  pad.addEventListener('touchstart', (e) => {
+    const t = e.changedTouches[0];
+    padId = t.identifier;
+    const r = pad.getBoundingClientRect();
+    px = r.left + r.width / 2; py = r.top + r.height / 2;
+    steer(t); e.preventDefault();
+  }, { passive: false });
+  /* the finger is tracked on the window, so sliding off the pad still steers
+     instead of stopping the player dead mid-run */
+  addEventListener('touchmove', (e) => {
+    if (padId === null) return;
+    for (const t of e.changedTouches) if (t.identifier === padId) { steer(t); e.preventDefault(); }
+  }, { passive: false });
+  const dropPad = (e) => {
+    if (padId === null) return;
+    for (const t of e.changedTouches) if (t.identifier === padId) { padId = null; setKnob(0, 0); }
+  };
+  addEventListener('touchend', dropPad); addEventListener('touchcancel', dropPad);
+
+  /* look: one finger dragged anywhere across the world itself */
+  const canvas = renderer.domElement;
+  let lookId = null, lx = 0, ly = 0;
+  canvas.addEventListener('touchstart', (e) => {
+    if (lookId !== null) return;
+    const t = e.changedTouches[0];
+    lookId = t.identifier; lx = t.clientX; ly = t.clientY;
+  }, { passive: true });
+  canvas.addEventListener('touchmove', (e) => {
+    for (const t of e.changedTouches) {
+      if (t.identifier !== lookId) continue;
+      player.yaw -= (t.clientX - lx) * 0.0055;
+      player.pitch -= (t.clientY - ly) * 0.0055;
+      player.pitch = Math.max(-1.55, Math.min(1.55, player.pitch));
+      lx = t.clientX; ly = t.clientY;
+      e.preventDefault();
+    }
+  }, { passive: false });
+  const dropLook = (e) => { for (const t of e.changedTouches) if (t.identifier === lookId) lookId = null; };
+  canvas.addEventListener('touchend', dropLook); canvas.addEventListener('touchcancel', dropLook);
+
+  const hold = (el, down, up) => {
+    el.addEventListener('touchstart', (e) => { down(); e.preventDefault(); }, { passive: false });
+    el.addEventListener('touchend', (e) => { if (up) up(); e.preventDefault(); }, { passive: false });
+    el.addEventListener('touchcancel', () => { if (up) up(); });
+  };
+  hold(document.getElementById('tmine'),
+       () => { mouseDown = true; },
+       () => { mouseDown = false; breaking = null; cracks.visible = false; });
+  hold(document.getElementById('tplace'), () => placeBlock());
+  /* reuse the jump key rather than a second code path — it already knows about
+     the ground, swimming and rising while flying */
+  hold(document.getElementById('tjump'), () => keys.add(' '), () => keys.delete(' '));
+
+  document.querySelectorAll('.tmenu button').forEach((b) => {
+    b.addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      if (!panel.classList.contains('hidden')) { closePanel(); return; }
+      const what = b.dataset.t;
+      if (what === 'bag') openInventory();
+      else if (what === 'journal') openJournal();
+      else if (what === 'trade') openTradingPost();
+      else if (what === 'map') openMap();
+      else if (what === 'fly') {
+        player.fly = !player.fly; player.vel.set(0, 0, 0);
+        say(player.fly ? 'Creative flight on' : 'Survival movement'); drawVitals();
+      } else if (what === 'talk') {
+        const a = rayVoxel(5);
+        if (a && worldBlockAt(a.x, a.y, a.z) === 41) { readTablet(a.x, a.y, a.z); return; }
+        if (a && worldBlockAt(a.x, a.y, a.z) === 44) { tryVaultDoor(a.x, a.y, a.z); return; }
+        const q = RPG_QUESTS[rpg.questIndex];
+        if (q && q.kind === 'rescue' && !escort && SITES.camp &&
+            Math.hypot(player.pos.x - SITES.camp.x, player.pos.z - SITES.camp.z) < 8) {
+          beginEscort(EXTRA_SETTLERS[0]); return;
+        }
+        talkToSettler(nearestSettler(4));
+      }
+    }, { passive: false });
+  });
+}
+setupTouch();
 showTitle();
 requestAnimationFrame(frame);
 /* a small hook so the page can be driven from tests or the parent frame */
@@ -2664,6 +2965,12 @@ window.frontier = {
   territory: () => territory, inTerritory, expandTerritory, discovered,
   saveWorld, loadSlot, slotSummary, exportWorld, worldPayload,
   rpg: () => ({ ...rpg, quest:RPG_QUESTS[rpg.questIndex] || null }), questEvent, addXp,
+  repairQuestIndex, RPG_QUESTS,
+  TOUCH, touchMove, setupTouch, syncTouchUI,
+  mining: () => breaking, mouseHeld: () => mouseDown,
+  runAwayDawns, openAwayReport, AWAY_DAWN_MS, AWAY_DAWN_CAP,
+  setAway: (ms) => { pendingAwayMs = ms; }, awayReport: () => awayReport,
+  tierShortfall, SETTLEMENT_TIERS, jobsDone, markProgress,
   PERKS, buyPerk, perkRank, armorTotal, pouches, dropPouch, completeBreak,
   SITES: () => SITES, planSites, stampSite, checkSites, readTablet, tryVaultDoor, LORE,
   sellToPost, rollContracts, deliverContract, merchantHere, merchantOffers, buyFromMerchant,
