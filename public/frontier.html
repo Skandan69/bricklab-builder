@@ -1662,6 +1662,32 @@ function showTitle() {
   importRow.appendChild(importButton);
   importRow.appendChild(picker);
   holder.parentElement.insertBefore(importRow, holder.nextSibling);
+  /* A returning player on a new phone has no save slot to click, so the way
+     back in has to be on the door, not behind it. */
+  const cloudCard = document.createElement('div');
+  cloudCard.className = 'settler-card';
+  cloudCard.style.marginTop = '12px';
+  const known = readCode();
+  cloudCard.innerHTML = '<b>Carry on from another device</b><small>' +
+    (known
+      ? 'This browser holds the code <b style="font-family:ui-monospace,monospace">' + prettyCode(known) + '</b>'
+      : 'Save to the cloud once from inside the game and you get a code that opens your world anywhere.') +
+    '</small>';
+  const cloudRow = document.createElement('div');
+  cloudRow.className = 'row';
+  const codeInput = document.createElement('input');
+  codeInput.placeholder = 'abcd-efgh-jkmn-pqrs';
+  codeInput.setAttribute('aria-label', 'Frontier code');
+  codeInput.style.cssText = 'flex:1;min-width:190px;font:600 14px ui-monospace,monospace;padding:8px 10px;' +
+    'border-radius:9px;border:1px solid var(--line);background:rgba(255,255,255,.06);color:inherit';
+  const codeButton = document.createElement('button');
+  codeButton.className = 'primary';
+  codeButton.textContent = 'Open that world';
+  codeButton.onclick = () => cloudLoad(codeInput.value, false);
+  cloudRow.appendChild(codeInput);
+  cloudRow.appendChild(codeButton);
+  cloudCard.appendChild(cloudRow);
+  holder.parentElement.insertBefore(cloudCard, importRow.nextSibling);
   panel.classList.remove('hidden');
 }
 function openMap() {
@@ -1678,6 +1704,7 @@ function openMap() {
       <button class="primary" id="btnCloseMap">Back to the world</button>
       <button id="btnExpand" ${territory >= TERRITORY_MAX || (expandCost() > rpg.coins) ? 'disabled' : ''}>Expand frontier (+${TERRITORY_STEP * 2} blocks)</button>
       <button id="btnSaveMap">Save</button>
+      <button id="btnCloudMap">Cloud & devices</button>
       <button id="btnExport">Export world</button>
     </div>
     <p class="muted" style="margin-top:12px">${territory >= TERRITORY_MAX
@@ -1691,6 +1718,7 @@ function openMap() {
     if (expandTerritory()) openMap();
   };
   document.getElementById('btnSaveMap').onclick = () => saveWorld();
+  document.getElementById('btnCloudMap').onclick = openCloud;
   document.getElementById('btnExport').onclick = exportWorld;
   panel.classList.remove('hidden');
   document.exitPointerLock && document.exitPointerLock();
@@ -2005,6 +2033,128 @@ function importWorld(file, then) {
     } catch (e) { then(false); }
   };
   reader.readAsText(file);
+}
+/* ------------------------------------------------------- the frontier code
+   This game runs inside a cross-site iframe, where the browser may give it no
+   durable storage at all — Safari denies third-party frames storage outright,
+   and clearing site data takes the rest. Local slots are therefore a
+   convenience, not a promise. The code is the promise: sixteen characters the
+   player can write down, that name their world on the server from any device.
+   It is kept in localStorage when that works, and shown to them when it does
+   not, because a code you can read off the screen survives a browser that
+   forgets everything. */
+const CLOUD_KEY = 'bricklab-frontier-code';
+const CODE_CHARS = 'abcdefghjkmnpqrstvwxyz23456789';   // no i l o u 0 1 to mistype
+const CODE_RE = /^[a-hjkmnp-tv-z2-9]{16}$/;
+let codeInMemory = '';
+function readCode() {
+  try { return localStorage.getItem(CLOUD_KEY) || codeInMemory; } catch (e) { return codeInMemory; }
+}
+function writeCode(code) {
+  codeInMemory = code;
+  try { localStorage.setItem(CLOUD_KEY, code); } catch (e) { /* private window — the code is still on screen */ }
+}
+function makeCode() {
+  const out = [];
+  const byte = new Uint8Array(1);
+  while (out.length < 16) {
+    if (crypto && crypto.getRandomValues) crypto.getRandomValues(byte);
+    else byte[0] = Math.floor(Math.random() * 256);
+    /* 240 is 8 x 30, so rejecting above it keeps every character equally likely */
+    if (byte[0] < 240) out.push(CODE_CHARS[byte[0] % CODE_CHARS.length]);
+  }
+  return out.join('');
+}
+const prettyCode = (c) => (c || '').replace(/(.{4})(?=.)/g, '$1-');
+const cleanCode = (v) => String(v || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+let cloudBusy = false, lastCloudSave = 0;
+async function cloudSave(quiet) {
+  const code = readCode();
+  if (!code || cloudBusy || panelMode === 'title') return false;
+  cloudBusy = true;
+  try {
+    const res = await fetch('/api/frontier', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ code, name: worldName, save: worldPayload(worldName) }),
+    });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) { if (!quiet) say(body.error || 'The cloud would not take that save'); return false; }
+    lastCloudSave = Date.now();
+    if (!quiet) say('Saved to the cloud');
+    return true;
+  } catch (e) {
+    /* offline is not a failure worth shouting about — the local save still happened */
+    if (!quiet) say('No connection — your world is still saved in this browser');
+    return false;
+  } finally { cloudBusy = false; }
+}
+/** Where a downloaded world should land, using the same rule an import does. */
+function slotForIncoming() {
+  for (let i = 0; i < SLOTS; i++) if (!slotSummary(i)) return i;
+  const answer = prompt('All ' + SLOTS + ' slots are full. Which should this world replace? (1-' + SLOTS + ')');
+  const choice = Number(answer);
+  return (choice >= 1 && choice <= SLOTS) ? choice - 1 : -1;
+}
+async function cloudLoad(rawCode, intoCurrentSlot) {
+  const code = cleanCode(rawCode);
+  if (!CODE_RE.test(code)) { alert('A frontier code is 16 letters and numbers.'); return false; }
+  let body;
+  try {
+    const res = await fetch('/api/frontier?code=' + encodeURIComponent(code));
+    body = await res.json();
+    if (!res.ok) { alert(body.error || 'Could not reach the cloud just now.'); return false; }
+  } catch (e) { alert('Could not reach the cloud just now.'); return false; }
+  if (!body.found) { alert('No frontier is saved under that code yet.'); return false; }
+  const slot = intoCurrentSlot ? activeSlot : slotForIncoming();
+  if (slot < 0) return false;
+  writeCode(code);
+  activeSlot = slot;
+  applyPayload(body.save);
+  /* the incoming world is a different place — let go of the one on screen */
+  chunks.forEach((c, k) => {
+    if (c.mesh) { scene.remove(c.mesh); c.mesh.geometry.dispose(); }
+    if (c.water) { scene.remove(c.water); c.water.geometry.dispose(); }
+    chunks.delete(k);
+  });
+  saveWorld(true);
+  startGame(false);
+  return true;
+}
+function openCloud() {
+  card.className = 'card';
+  panelMode = 'cloud';
+  const code = readCode();
+  card.innerHTML =
+    '<h1>Play on any device</h1>' +
+    '<p class="muted">This browser can forget a world — a private window, cleared data, or simply another phone. ' +
+    'Your frontier code is the copy that does not depend on it.</p>' +
+    (code
+      ? '<div class="settler-card"><b>Your frontier code</b><strong style="font:700 20px ui-monospace,monospace;letter-spacing:2px">' +
+        prettyCode(code) + '</strong><small>Write this down. Anyone with it can open your world.</small></div>'
+      : '<div class="settler-card"><b>No code yet</b><small>Save to the cloud once and one is made for you.</small></div>') +
+    '<div class="row"><button class="primary" id="btnCloudSave">Save to the cloud</button>' +
+    '<button id="btnCloudPull">Load my cloud world</button></div>' +
+    '<h2>Use a code from another device</h2>' +
+    '<div class="row"><input id="cloudInput" placeholder="abcd-efgh-jkmn-pqrs" ' +
+    'style="flex:1;min-width:200px;font:600 15px ui-monospace,monospace;padding:9px 11px;border-radius:9px;' +
+    'border:1px solid var(--line);background:rgba(255,255,255,.06);color:inherit">' +
+    '<button id="btnCloudUse">Open it</button></div>' +
+    '<div class="row"><button id="btnCloudClose">Back</button></div>';
+  document.getElementById('btnCloudSave').onclick = async () => {
+    if (!readCode()) writeCode(makeCode());
+    const ok = await cloudSave(false);
+    if (ok) openCloud();
+  };
+  document.getElementById('btnCloudPull').onclick = () => {
+    const c = readCode();
+    if (!c) { alert('There is no code on this device yet. Save to the cloud first, or enter a code below.'); return; }
+    cloudLoad(c, true);
+  };
+  document.getElementById('btnCloudUse').onclick = () => cloudLoad(document.getElementById('cloudInput').value, false);
+  document.getElementById('btnCloudClose').onclick = closePanel;
+  panel.classList.remove('hidden');
+  document.exitPointerLock && document.exitPointerLock();
 }
 /* ---------------------------------------------------------------- creatures
    Original BrickLab wildlife. Grublings surface after dark, stone-biters live
@@ -3035,7 +3185,13 @@ function frame(now) {
     drawVitals();
   }
   autoSave += dt;
-  if (autoSave > 45) { autoSave = 0; saveWorld(true); }
+  if (autoSave > 45) {
+    autoSave = 0;
+    saveWorld(true);
+    /* a quiet push at most every three minutes: enough that a lost browser
+       costs very little, rare enough not to hammer the route */
+    if (readCode() && Date.now() - lastCloudSave > 180000) cloudSave(true);
+  }
   fpsAcc += dt; fpsFrames++; hudTimer += dt;
   if (hudTimer > 0.4) {
     let faces = 0;
@@ -3099,6 +3255,15 @@ const saveOnExit = () => {
   if (panelMode === 'title' || savedOnExit) return;
   savedOnExit = true;
   saveWorld(true);
+  /* fetch is cancelled the moment the tab goes; a beacon is not */
+  const code = readCode();
+  if (code && navigator.sendBeacon) {
+    try {
+      navigator.sendBeacon('/api/frontier', new Blob(
+        [JSON.stringify({ code, name: worldName, save: worldPayload(worldName) })],
+        { type: 'application/json' }));
+    } catch (e) { /* nothing more we can do on the way out */ }
+  }
 };
 addEventListener('pagehide', saveOnExit);
 addEventListener('beforeunload', saveOnExit);
@@ -3235,6 +3400,7 @@ window.frontier = {
   pendingRescue, EXTRA_SETTLERS, escortActive: () => escort,
   FAVOURS, favoursFor, favourState, deliverFavour,
   storyDone, WINTER_NAMES, rollDaily, deliverDaily, todayKey, frost: () => frostOn,
+  makeCode, readCode, writeCode, cloudSave, cloudLoad, openCloud, prettyCode, cleanCode,
   PERKS, buyPerk, perkRank, armorTotal, pouches, dropPouch, completeBreak,
   SITES: () => SITES, planSites, stampSite, checkSites, readTablet, tryVaultDoor, LORE,
   sellToPost, rollContracts, deliverContract, merchantHere, merchantOffers, buyFromMerchant,
