@@ -176,6 +176,18 @@
   .tmenu button{padding:8px;font-size:17px;border-radius:11px;line-height:1;min-width:40px}
   /* the phone layout: nothing sits where a thumb has to be */
   body.touch canvas{touch-action:none}
+  /* time-to-play beats the sales pitch: the world picker comes first on a phone */
+  body.touch .title-shell{display:flex;flex-direction:column;padding:16px 14px 24px}
+  body.touch .title-nav{order:0;margin-bottom:16px}
+  body.touch .title-lower{order:1;margin-top:0}
+  body.touch .title-hero{order:2;margin-top:26px}
+  body.touch .title-foot{order:3}
+  body.touch .frontier-brand{font-size:15px}
+  body.touch .title-copy h1{font-size:34px!important;letter-spacing:-1.4px}
+  body.touch .title-lede{font-size:14px!important;margin:14px 0 16px!important}
+  body.touch .title-art{height:200px;border-radius:18px}
+  body.touch .title-card #slots{grid-template-columns:1fr;gap:9px}
+  body.touch .title-card .world-save-card{min-height:0}
   body.touch #stats{display:none!important}
   body.touch #hint{top:62px}
   body.touch #rpgHud{left:8px;top:64px;bottom:auto;width:min(186px,47vw);padding:8px 10px}
@@ -196,7 +208,15 @@
   @media (max-height:520px){
     .tpad{width:104px;height:104px;bottom:72px}.tknob{width:44px;height:44px;margin:-22px 0 0 -22px}
     .tbtn{width:58px;height:58px;font-size:10px}.tbtn.wide{width:126px;height:44px}
-    body.touch #rpgHud{display:none}
+    /* a phone on its side still needs to know what it is doing — compact, not gone */
+    body.touch #rpgHud{display:block;top:8px;left:8px;width:min(174px,32vw);padding:6px 8px}
+    body.touch #rpgHud .xp{display:none}
+    body.touch #rpgHud .rpgTop{margin-bottom:3px}
+    body.touch #rpgHud small{display:none}
+    body.touch #rpgHud strong{font-size:11px;margin:0}
+    body.touch #rpgHud p{font-size:10px}
+    body.touch #vitals{top:8px;right:66px}
+    body.touch #hint{top:10px}
   }
 </style>
 </head>
