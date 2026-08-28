@@ -768,7 +768,7 @@ const RPG_QUESTS = [
   { ch:1, id:'guardian', title:'Guard the frontier', detail:'Defeat one hostile creature', kind:'defeat', target:1, xp:75, coins:15 },
   /* chapter 2 — The Others */
   { ch:2, id:'smoke', title:'Smoke on the ridge', detail:'Find the campfire to the north-east (follow the map ping)', kind:'visit', site:'camp', target:1, xp:60, coins:12 },
-  { ch:2, id:'rescue', title:'Bring Devan home', detail:'Talk to Devan at his camp, then walk him back to the settlement', kind:'rescue', target:1, xp:90, coins:20 },
+  { ch:2, id:'rescue', title:'Bring Devan home', detail:'Talk to Devan at his camp, then walk him back to the settlement', kind:'rescue', site:'camp', who:'devan', target:1, xp:90, coins:20 },
   { ch:2, id:'beds', title:'Shelter for the newcomer', detail:'Place 12 building blocks near the settlement', kind:'place', target:12, xp:70, coins:15 },
   { ch:2, id:'arm', title:'Arm the watch', detail:'Craft a spear', kind:'craft', block:33, target:1, xp:60, coins:12 },
   { ch:2, id:'firstnight', title:'The first bad night', detail:'Drive off a raid (reach Hamlet, then survive one night raid)', kind:'raid', target:1, xp:120, coins:30, reqTier:1 },
@@ -790,11 +790,13 @@ const RPG_QUESTS = [
   { ch:5, id:'sixwords', title:'The six voices', detail:'Read 3 more lore tablets scattered across the frontier', kind:'read', target:3, xp:150, coins:30, reqTier:3 },
   { ch:5, id:'door', title:'Behind the old door', detail:'Open the vault with the crystal key', kind:'vault', target:1, xp:200, coins:50, reqTier:3 },
   { ch:5, id:'holdline', title:'Hold the line', detail:'Drive off 2 more night raids', kind:'raid', target:2, xp:180, coins:45, reqTier:3 },
+  { ch:5, id:'captain', title:'The Captain at the outpost', detail:'Ganan fought the Warlord once before — find the eastern outpost and walk him home', kind:'rescue', site:'outpost', who:'ganan', target:1, xp:170, coins:40, reqTier:3 },
   { ch:5, id:'warlord', title:'The Warlord at the gate', detail:'The raids have a leader now. Face the Warlord when night falls', kind:'boss', target:1, xp:300, coins:100, reqTier:3 },
 ];
 const freshRpg = () => ({ level:1, xp:0, coins:0, placed:0, questIndex:0, questProgress:0, completed:[], jobs:{},
   perkPts:0, perks:{}, aff:{}, rescued:[], tierSeen:0, tabletsRead:[], stamped:[], vaultOpen:false,
-  expansions:0, sold:0, contractsDone:0, assigns:{}, dayIndex:-1, contracts:[], merchantBought:0, raidsSurvived:0, bossKills:[] });
+  expansions:0, sold:0, contractsDone:0, assigns:{}, dayIndex:-1, contracts:[], merchantBought:0, raidsSurvived:0, bossKills:[],
+  works:[], boons:[], favours:[], soldMarks:0, wave:0, bestWave:0, streak:0, lastDay:'', daily:null });
 /* The settlement grows out of what you actually build and who you help, not
    out of a level number. Each tier unlocks more of Arun's stock. */
 const SETTLEMENT_TIERS = [
@@ -863,10 +865,12 @@ function drawRpgHud() {
   const tier = SETTLEMENT_TIERS[settlementTier()];
   document.getElementById('rpgSettlement').textContent = tier.name + (raid.active ? ' · under raid' : '');
   document.getElementById('rpgXp').style.width = Math.min(100, rpg.xp / xpNeeded(rpg.level) * 100) + '%';
-  document.getElementById('rpgQuest').textContent = quest ? quest.title : 'Frontier founder';
+  document.getElementById('rpgQuest').textContent = quest ? quest.title
+    : (rpg.bestWave ? 'Winter ' + (rpg.wave || 0) : 'Frontier founder');
   const gated = quest && (quest.reqTier || 0) > settlementTier();
   document.getElementById('rpgQuestProgress').textContent = !quest
-    ? 'Every chapter closed · the frontier is yours to build'
+    ? (rpg.wave ? 'Winter ' + rpg.wave + (raid.mod ? ' · ' + raid.mod : '') + ' · best ' + (rpg.bestWave || 0)
+                : 'Every chapter closed · the nights start counting now')
     : gated ? tierShortfall(quest.reqTier)
     : quest.detail + ' · ' + Math.min(rpg.questProgress, quest.target) + ' / ' + quest.target;
 }
@@ -945,13 +949,23 @@ const shopPrice = (base) => Math.max(1, Math.ceil(base * (1 - 0.08 * perkRank('h
 /* ------------------------------------------------------- selling & contracts
    Arun buys at well under his selling price — the spread is the anti-loop. */
 const SELL_PRICES = { 16:2, 17:3, 18:6, 19:10, 20:8, 15:1, 4:1, 25:2, 24:3, 5:1, 2:1, 3:1, 6:1, 42:2, 32:2, 35:2 };
+/* Stone, sand, soil, cobble and logs are infinite, so selling them was an
+   infinite money printer — and no cap on income makes every price in the game
+   meaningless. Arun simply has a purse, and it refills at dawn. */
+const PURSE_BASE = 80;
+const purseLimit = () => PURSE_BASE + (hasWork('storehouse') ? 60 : 0) + (boon('arun') ? 40 : 0);
+const purseLeft = () => Math.max(0, purseLimit() - (rpg.soldMarks || 0));
 function sellToPost(id, n) {
   const each = SELL_PRICES[id];
   const have = inventory.get(id) || 0;
-  const count = Math.min(n || have, have);
+  let count = Math.min(n || have, have);
   if (!each || count <= 0) return 0;
+  const affordable = Math.floor(purseLeft() / each);
+  if (affordable <= 0) { say('Arun is out of coin today — he buys again at dawn'); return 0; }
+  if (count > affordable) count = affordable;
   take(id, count);
   const paid = each * count;
+  rpg.soldMarks = (rpg.soldMarks || 0) + paid;
   rpg.coins += paid;
   rpg.sold = (rpg.sold || 0) + count;
   questEvent('sell', 0, count);
@@ -1012,6 +1026,53 @@ function buyFromMerchant(k) {
 }
 const affOf = (id) => (rpg.aff && rpg.aff[id]) || 0;
 function addAff(id, n) { rpg.aff = rpg.aff || {}; rpg.aff[id] = Math.min(10, affOf(id) + n); }
+/* ------------------------------------------------------------- favours
+   Affinity existed but only ever ticked up from delivering job supplies, and
+   the settlers said one fixed line for ever. Two favours each, the second
+   ending in a permanent boon, is the cheapest way to turn a vending machine
+   with a name into somebody you have a history with. */
+const FAVOURS = [
+  { id:'mira1',  who:'mira',  aff:2, title:'A straight edge',      detail:'Mira wants planks true enough for a frame.',           need:[[15,10]],        xp:60,  coins:30 },
+  { id:'mira2',  who:'mira',  aff:4, title:'Something permanent',  detail:'Bricks, for a wall that outlasts all of us.',          need:[[25,12]],        xp:110, coins:60, boon:'Mira drafts your public works 15% cheaper' },
+  { id:'arun1',  who:'arun',  aff:2, title:'Fuel for the ledger',  detail:'Arun burns coal keeping the post open after dark.',    need:[[16,6]],         xp:60,  coins:30 },
+  { id:'arun2',  who:'arun',  aff:4, title:'A heavier purse',      detail:'Iron for a strongbox worth trusting.',                 need:[[18,4]],         xp:110, coins:60, boon:'Arun carries 40 more marks each day' },
+  { id:'leela1', who:'leela', aff:2, title:'Light for the passes', detail:'Leela will not scout unlit ground twice.',             need:[[23,6]],         xp:60,  coins:30 },
+  { id:'leela2', who:'leela', aff:4, title:'A lens of her own',    detail:'Crystal, cut for seeing far.',                         need:[[20,3]],         xp:110, coins:60, boon:'Leela marks every site on your map' },
+  { id:'devan1', who:'devan', aff:0, title:'The forge relit',      detail:'Devan needs iron before he is any use to anyone.',     need:[[18,4]],         xp:70,  coins:35 },
+  { id:'devan2', who:'devan', aff:2, title:'A smith worth keeping',detail:'Hide and iron, and he will re-temper everything you carry.', need:[[35,2],[18,3]], xp:120, coins:65, boon:'Devan makes your tools and weapons last twice as long' },
+  { id:'kavya1', who:'kavya', aff:0, title:'First furrow',         detail:'Kavya wants tilled soil to prove the ground is good.', need:[[2,8]],          xp:70,  coins:35 },
+  { id:'kavya2', who:'kavya', aff:2, title:'Seed for the season',  detail:'Rations to hold back for planting.',                   need:[[32,4]],         xp:120, coins:65, boon:'Kavya coaxes an extra ration from the fields each dawn' },
+  { id:'tara1',  who:'tara',  aff:0, title:'A place to lay them',  detail:'Planks for cots, so the hurt are not on the floor.',   need:[[15,8]],         xp:70,  coins:35 },
+  { id:'tara2',  who:'tara',  aff:2, title:'What she cannot make', detail:'Crystal — she will not say what for.',                 need:[[20,3]],         xp:120, coins:65, boon:'Tara keeps your pack safe when you fall' },
+  { id:'ganan1', who:'ganan', aff:0, title:'Arm the captain',      detail:'Ganan came in with nothing but the story.',            need:[[33,1]],         xp:70,  coins:35 },
+  { id:'ganan2', who:'ganan', aff:2, title:'A blade he trusts',    detail:'Iron, properly made. He has seen what comes.',         need:[[34,1]],         xp:130, coins:70, boon:'Ganan drills the watch — guards strike 2 harder' },
+];
+const favoursFor = (who) => FAVOURS.filter((f) => f.who === who);
+function favourState(f) {
+  if ((rpg.favours || []).includes(f.id)) return 'done';
+  if (affOf(f.who) < f.aff) return 'locked';
+  return f.need.every(([id, n]) => (inventory.get(id) || 0) >= n) ? 'ready' : 'gather';
+}
+function deliverFavour(fid) {
+  const f = FAVOURS.find((x) => x.id === fid);
+  if (!f || favourState(f) !== 'ready') return false;
+  f.need.forEach(([id, n]) => take(id, n));
+  rpg.favours = rpg.favours || [];
+  rpg.favours.push(f.id);
+  addAff(f.who, 2);
+  rpg.coins += f.coins;
+  addXp(f.xp);
+  if (f.boon && !boon(f.who)) {
+    rpg.boons = rpg.boons || [];
+    rpg.boons.push(f.who);
+    say(f.boon);
+  } else {
+    say('Favour done · +' + f.coins + ' marks');
+  }
+  drawRpgHud();
+  markProgress();
+  return true;
+}
 function stationBuilt(id) {
   const hub = settlementHub();
   const hx = Math.round(hub.x), hz = Math.round(hub.z);
@@ -1154,12 +1215,33 @@ function openJournal() {
       const can = (rpg.perkPts || 0) > 0 && r < p.max;
       return `<div class="settler-card"><b>${p.name} ${'★'.repeat(r)}${'☆'.repeat(p.max - r)}</b><small>${p.d}</small><button data-perk="${p.id}" ${can ? '' : 'disabled'}>${r >= p.max ? 'Mastered' : 'Take rank'}</button></div>`;
     }).join('')}</div>
+    <h2>Public works <span class="muted" style="font-weight:400">${(rpg.works || []).length}/${PUBLIC_WORKS.length} standing</span></h2>
+    <p class="muted">Pay the crew and they raise it overnight, block by block, where the settlement stands.</p>
+    <div class="settler-grid">${PUBLIC_WORKS.map((w) => {
+      const built = hasWork(w.id), price = workCost(w), locked = (w.tier || 0) > settlementTier();
+      const busy = buildQueue.length > 0 || !!pendingWork;
+      const can = !built && !locked && !busy && rpg.coins >= price;
+      const state = built ? 'Standing' : locked ? SETTLEMENT_TIERS[w.tier].name + ' unlocks this'
+        : busy ? 'The crew is busy' : price + ' marks' + (boon('mira') ? ' (Mira\'s discount)' : '');
+      return `<div class="settler-card"><b>${w.name}${built ? ' ✓' : ''}</b><small>${w.note}</small><p>${state}</p>` +
+        `<button data-work="${w.id}" ${can ? '' : 'disabled'}>${built ? 'Built' : 'Commission'}</button></div>`;
+    }).join('')}</div>
     <h2>The crew</h2>
     <div class="settler-grid">${rosterSpecs().map((spec) => {
       const hearts = Math.round(affOf(spec.id) / 2);
       const duty = (rpg.assigns || {})[spec.id];
       const dutyName = duty === 22 ? 'Workshop' : duty === 45 ? 'Watch' : duty === 46 ? 'Fields' : 'Free';
-      return `<div class="settler-card"><b>${spec.name} · ${spec.role}</b><small>${'❤'.repeat(hearts)}${'♡'.repeat(5 - hearts)} · duty: ${dutyName}</small><button data-assign="${spec.id}">Change duty</button></div>`;
+      const fav = favoursFor(spec.id).find((f) => favourState(f) !== 'done');
+      const st = fav ? favourState(fav) : null;
+      const favHtml = !fav
+        ? '<p class="muted">Every favour asked and answered.</p>'
+        : st === 'locked'
+          ? '<p class="muted">Work with ' + spec.name + ' a little more first.</p>'
+          : '<p><b style="color:#ffd166">' + fav.title + '</b><br><small>' + fav.detail + ' · ' +
+            fav.need.map(([id, n]) => n + ' ' + BLOCKS[id].name.toLowerCase()).join(' + ') + '</small></p>' +
+            '<button data-fav="' + fav.id + '" ' + (st === 'ready' ? '' : 'disabled') + '>' +
+            (st === 'ready' ? 'Hand it over' : 'Gather it') + '</button>';
+      return `<div class="settler-card"><b>${spec.name} · ${spec.role}</b><small>${'❤'.repeat(hearts)}${'♡'.repeat(5 - hearts)} · duty: ${dutyName}${boon(spec.id) ? ' · sworn friend' : ''}</small>${favHtml}<button data-assign="${spec.id}">Change duty</button></div>`;
     }).join('')}</div>
     ${(rpg.tabletsRead || []).length ? `<h2>Codex · voices in the stone ${(rpg.tabletsRead || []).length}/6</h2>
     <div class="settler-card"><small>${LORE.slice(0, Math.min(6, (rpg.tabletsRead || []).length)).map((l) => l.split(' — ')[0]).join(' · ')}</small></div>` : ''}
@@ -1168,6 +1250,8 @@ function openJournal() {
   card.querySelectorAll('[data-job]').forEach((button) => button.onclick = () => completeSettlementJob(button.dataset.job));
   card.querySelectorAll('[data-perk]').forEach((button) => button.onclick = () => { buyPerk(button.dataset.perk); openJournal(); });
   card.querySelectorAll('[data-assign]').forEach((button) => button.onclick = () => { cycleAssign(button.dataset.assign); openJournal(); });
+  card.querySelectorAll('[data-work]').forEach((button) => button.onclick = () => { commissionWork(button.dataset.work); openJournal(); });
+  card.querySelectorAll('[data-fav]').forEach((button) => button.onclick = () => { deliverFavour(button.dataset.fav); openJournal(); });
   document.getElementById('btnCloseJournal').onclick = closePanel;
   document.getElementById('btnTradeJournal').onclick = openTradingPost;
   document.getElementById('btnBagJournal').onclick = openInventory;
@@ -1189,6 +1273,7 @@ function openTradingPost() {
     const bid = Number(id), have = inventory.get(bid) || 0;
     return `<div class="recipe"><span><b>${BLOCKS[bid].name} × ${have}</b><small>${SELL_PRICES[bid]} marks each</small></span><button data-sell="${bid}"><span class="shop-price">Sell all · +${SELL_PRICES[bid] * have}</span></button></div>`;
   }).join('') || '<p class="muted">Nothing in the bag Arun wants today.</p>';
+  const purse = '<p class="muted">Arun\'s purse today: <b>' + purseLeft() + '</b> of ' + purseLimit() + ' marks. It refills at dawn.</p>';
   const day = Math.floor(clock / DAY_LENGTH);
   const contractRows = (rpg.contracts || []).map((c) => {
     const left = Math.max(0, c.deadline - clock);
@@ -1206,7 +1291,16 @@ function openTradingPost() {
     <p>“Frontier marks are earned by helping the settlement. Spend them on supplies you need; the land still expects you to gather the rest.”</p>
     <p class="muted">Balance: ${rpg.coins} frontier marks · settlement: ${SETTLEMENT_TIERS[tier].name}${affOf('arun') >= 4 ? ' · Arun\'s friend (−5%)' : ''}</p>
     <div class="grid">${offers}</div>
-    <h2>Sell to the post</h2><div class="grid">${sellRows}</div>
+    <h2>Sell to the post</h2>${purse}<div class="grid">${sellRows}</div>
+    <h2>Today's commission ${rpg.streak > 1 ? '<span class="muted" style="font-weight:400">' + rpg.streak + '-day streak</span>' : ''}</h2>
+    <div class="grid">${(() => {
+      const d = rpg.daily;
+      if (!d) return '<p class="muted">Nothing posted today.</p>';
+      const have = Math.min(inventory.get(d.block) || 0, d.n);
+      if (d.done) return `<div class="recipe"><span><b>${d.title}</b><small>filled today · +${d.pay} marks</small></span><button disabled><span class="shop-price">Done</span></button></div>`;
+      return `<div class="recipe"><span><b>${d.title}</b><small>${d.n} ${BLOCKS[d.block].name.toLowerCase()} · you hold ${have}/${d.n} · new one tomorrow</small></span>` +
+        `<button data-daily="1" ${have >= d.n ? '' : 'disabled'}><span class="shop-price">${d.pay} marks</span></button></div>`;
+    })()}</div>
     <h2>Contract board</h2><div class="grid">${contractRows}</div>
     <h2>Sana the traveller ${merchantHere() ? '· <span style="color:#ffd166">in town today</span>' : ''}</h2><div class="grid">${sanaRows}</div>
     <div class="row"><button class="primary" id="btnCloseTrade">Return to world</button><button id="btnJournalTrade">Quest journal</button></div>`;
@@ -1214,6 +1308,7 @@ function openTradingPost() {
   card.querySelectorAll('[data-sell]').forEach((button) => button.onclick = () => { sellToPost(Number(button.dataset.sell)); openTradingPost(); });
   card.querySelectorAll('[data-contract]').forEach((button) => button.onclick = () => { deliverContract(button.dataset.contract); openTradingPost(); });
   card.querySelectorAll('[data-sana]').forEach((button) => button.onclick = () => { buyFromMerchant(Number(button.dataset.sana)); openTradingPost(); });
+  card.querySelectorAll('[data-daily]').forEach((button) => button.onclick = () => { deliverDaily(); openTradingPost(); });
   document.getElementById('btnCloseTrade').onclick = closePanel;
   document.getElementById('btnJournalTrade').onclick = openJournal;
   panel.classList.remove('hidden');
@@ -1268,7 +1363,7 @@ function dropPouch() {
   say('Your supplies stayed where you fell — the pouch is marked on the map (M)');
 }
 function respawn() {
-  dropPouch();
+  if (!boon('tara')) dropPouch();   /* what the healer is actually for */
   say('You blacked out and woke at the spawn point');
   player.health = 20; player.food = Math.max(6, player.food - 4);
   player.pos.set(8, heightAt(8, 8) + 3, 8);
@@ -1331,6 +1426,8 @@ function completeBreak(x, y, z, id, toolId) {
   return true;
 }
 function wearTool(id) {
+  /* Devan re-tempers: half the swings simply do not count against the edge */
+  if (boon('devan') && Math.random() < 0.5) return;
   const left = (tools.get(id) || 0) - 1;
   if (left <= 0) {
     take(id, 1);
@@ -1579,11 +1676,15 @@ function openMap() {
     <p class="muted">Gold marks where you began, red is you. Unexplored ground stays dark until you walk it.</p>
     <div class="row">
       <button class="primary" id="btnCloseMap">Back to the world</button>
-      <button id="btnExpand">Expand frontier (+${TERRITORY_STEP * 2} blocks)</button>
+      <button id="btnExpand" ${territory >= TERRITORY_MAX || (expandCost() > rpg.coins) ? 'disabled' : ''}>Expand frontier (+${TERRITORY_STEP * 2} blocks)</button>
       <button id="btnSaveMap">Save</button>
       <button id="btnExport">Export world</button>
     </div>
-    <p class="muted" style="margin-top:12px">Expansion is free during Early Builder Access.</p>`;
+    <p class="muted" style="margin-top:12px">${territory >= TERRITORY_MAX
+      ? 'This frontier is at its limit.'
+      : (expandCost() === 0
+          ? 'Your first survey is free. Later ones are paid for in marks.'
+          : 'The surveyors want <b>' + expandCost() + ' marks</b> for the next one — you have ' + rpg.coins + '.')}</p>`;
   drawMap(document.getElementById('mapCanvas'));
   document.getElementById('btnCloseMap').onclick = closePanel;
   document.getElementById('btnExpand').onclick = () => {
@@ -1672,12 +1773,8 @@ addEventListener('keydown', (e) => {
     const aim = rayVoxel(5);
     if (aim && worldBlockAt(aim.x, aim.y, aim.z) === 41) { readTablet(aim.x, aim.y, aim.z); return; }
     if (aim && worldBlockAt(aim.x, aim.y, aim.z) === 44) { tryVaultDoor(aim.x, aim.y, aim.z); return; }
-    const q = RPG_QUESTS[rpg.questIndex];
-    if (q && q.kind === 'rescue' && !escort && SITES.camp &&
-        Math.hypot(player.pos.x - SITES.camp.x, player.pos.z - SITES.camp.z) < 8) {
-      beginEscort(EXTRA_SETTLERS[0]);
-      return;
-    }
+    const rescue = pendingRescue();
+    if (rescue) { beginEscort(rescue.spec, rescue.site); return; }
     talkToSettler(nearestSettler(4));
   }
   if (k === 'm') { panel.classList.contains('hidden') ? openMap() : closePanel(); }
@@ -1756,7 +1853,8 @@ function drawMapMarkers(ctx, span, scale) {
   const q = RPG_QUESTS[rpg.questIndex];
   if (q && q.site && SITES[q.site]) dot(SITES[q.site].x, SITES[q.site].z, '#ff7b5c', 4);
   (rpg.stamped || []).forEach((name) => { if (SITES[name]) dot(SITES[name].x, SITES[name].z, '#8fe6ec', 3); });
-  if (affOf('leela') >= 4) ['ruinA','ruinB','vault'].forEach((name) => { if (SITES[name]) dot(SITES[name].x, SITES[name].z, 'rgba(143,230,236,0.5)', 3); });
+  if (boon('leela')) Object.keys(SITES).forEach((name) => dot(SITES[name].x, SITES[name].z, 'rgba(143,230,236,0.8)', 3));
+  else if (affOf('leela') >= 4) ['ruinA','ruinB','vault'].forEach((name) => { if (SITES[name]) dot(SITES[name].x, SITES[name].z, 'rgba(143,230,236,0.5)', 3); });
 }
 function drawMap(canvas) {
   const ctx = canvas.getContext('2d');
@@ -1929,19 +2027,35 @@ const EXTRA_SETTLERS = [
   { id:'ganan', name:'Ganan', role:'Captain', colour:0x5a6d90, trim:0xffd8b5, x:8, z:3,
     greeting:'I fought the Warlord to a standstill once, far from here. With walls like these we can do better than a standstill.' },
 ];
+/* Which rescue is live, if any. Ganan was written in full — Captain, a line
+   about fighting the Warlord to a standstill — and no code ever added him to
+   the roster. Now the quest says who and where, and the same walk home works
+   for both of them. */
+function pendingRescue() {
+  const q = RPG_QUESTS[rpg.questIndex];
+  if (!q || q.kind !== 'rescue' || escort) return null;
+  const spec = EXTRA_SETTLERS.find((x) => x.id === q.who) || EXTRA_SETTLERS[0];
+  const site = SITES[q.site || 'camp'];
+  if (!spec || !site || (rpg.rescued || []).includes(spec.id)) return null;
+  if (Math.hypot(player.pos.x - site.x, player.pos.z - site.z) > 8) return null;
+  return { spec, site: q.site || 'camp' };
+}
 function rosterSpecs() {
   return SETTLERS.concat(EXTRA_SETTLERS.filter((spec) => (rpg.rescued || []).includes(spec.id)));
 }
 /* the rescue walk: Devan follows until he is home, then he stays */
 let escort = null;   // { spec, group, pos }
-function beginEscort(spec) {
-  if (escort) return;
-  const site = SITES.camp;
+let escortName = '';
+function beginEscort(spec, siteName) {
+  if (escort || !spec) return;
+  const site = SITES[siteName || 'camp'];
+  if (!site) return;
   const y = Math.max(heightAt(site.x, site.z) + 1, SEA_LEVEL + 1);
   const group = settlerMesh(spec);
   group.position.set(site.x + .5, y, site.z + .5);
   scene.add(group);
   escort = { spec, group, pos: new THREE.Vector3(site.x + .5, y, site.z + .5) };
+  escortName = spec.name;
   say(spec.name + ': “Lead on — I can walk.”');
 }
 function updateEscort(dt) {
@@ -1962,8 +2076,9 @@ function updateEscort(dt) {
     scene.remove(escort.group);
     escort = null;
     spawnSettlers();
+    const who = escortName;
     questEvent('rescue', 0, 1);
-    say('Devan is home — the settlement grows by one');
+    say(who + ' is home — the settlement grows by one');
   }
 }
 const settlers = [];
@@ -2071,6 +2186,7 @@ function planSites() {
     t4:     { x: spot(11, 18, 60), z: spot(12, 18, 60) },
     t5:     { x: spot(13, 18, 60), z: spot(14, 18, 60) },
     t6:     { x: spot(15, 18, 60), z: spot(16, 18, 60) },
+    outpost:{ x: spot(17, 30, 52), z: spot(18, 30, 52) },
   };
 }
 const LORE = [
@@ -2088,7 +2204,7 @@ function stampSite(name) {
   if (!site) return;
   const g = (dx, dz) => Math.max(heightAt(site.x + dx, site.z + dz), SEA_LEVEL);
   const put = (dx, dy, dz, id) => { const y = g(dx, dz) + dy; if (!worldBlockAt(site.x + dx, y, site.z + dz)) placeWorldBlock(site.x + dx, y, site.z + dz, id); };
-  if (name === 'camp') {
+  if (name === 'camp' || name === 'outpost') {
     put(0, 1, 0, 6); put(0, 2, 0, 23);                       // a log fire and its torch
     put(2, 1, 0, 6); put(-2, 1, 1, 15);
   } else if (name === 'ruinA' || name === 'ruinB') {
@@ -2292,6 +2408,11 @@ function removeMob(i) {
    chew through the blocks you placed — but only ones standing in the dark.
    Torchlight is the wall that actually works, which is what the crafting
    tree was pointing at all along. */
+/* The story used to simply stop, and with it every number worth moving. After
+   the last chapter the nights keep coming and start counting instead. */
+const WINTER_NAMES = ['The Long Frost', 'The Horde', 'Ashfall', 'The Quiet Snow', "The Warlord's Kin", 'Deepwinter'];
+const storyDone = () => rpg.questIndex >= RPG_QUESTS.length;
+let frostOn = false;                // a frost narrows what a torch can protect
 const RAID_GRACE_TIER = 1;          // Camp is left alone; raids begin at Hamlet
 const RAID_CHEW_SECONDS = 1.8;
 const RAID_LIGHT_RADIUS = 4;        // a torch this close keeps a block safe
@@ -2326,7 +2447,19 @@ function beginRaid() {
     say('The Warlord walks at the head of the raid');
   }
   const hub = settlementHub();
-  const wanted = 2 + settlementTier();
+  raid.mod = '';
+  frostOn = false;
+  if (storyDone()) {
+    rpg.wave = (rpg.wave || 0) + 1;
+    raid.mod = WINTER_NAMES[(rpg.wave - 1) % WINTER_NAMES.length];
+    frostOn = rpg.wave % 3 === 0;
+    if (rpg.wave % 5 === 0 && !mobs.some((m) => m.kind === 'warlord')) {
+      spawnMob('warlord', hub.x + 10.5,
+        Math.max(heightAt(Math.round(hub.x + 10), Math.round(hub.z)), SEA_LEVEL) + 1, hub.z + .5);
+    }
+    say('Winter ' + rpg.wave + ' — ' + raid.mod + (frostOn ? ' · torches hold less ground' : ''));
+  }
+  const wanted = 2 + settlementTier() + (storyDone() ? Math.min(8, Math.floor((rpg.wave || 0) / 2)) : 0);
   let spawned = 0;
   for (let attempt = 0; attempt < 40 && spawned < wanted; attempt++) {
     const angle = Math.random() * Math.PI * 2;
@@ -2357,6 +2490,12 @@ function endRaid() {
     else say('Dawn — ' + raid.blocksLost + ' block' + (raid.blocksLost === 1 ? '' : 's') + ' lost' +
              (returned ? ' · ' + returned + ' settler' + (returned === 1 ? '' : 's') + ' back at work' : ''));
     rpg.raidsSurvived = (rpg.raidsSurvived || 0) + 1;
+    if (storyDone() && rpg.wave) {
+      rpg.bestWave = Math.max(rpg.bestWave || 0, rpg.wave);
+      rpg.coins += 10 + rpg.wave * 2;
+      addXp(40 + rpg.wave * 10);
+      say('Winter ' + rpg.wave + ' survived · best ' + rpg.bestWave);
+    }
     questEvent('raid', 0, 1);
   }
   drawRpgHud();
@@ -2366,6 +2505,7 @@ function endRaid() {
    same clock the raids do. */
 function onNewDay(day) {
   rollContracts();
+  rpg.soldMarks = 0;
   const crew = rosterSpecs().length;
   if (crew > 3) {
     const wages = crew - 3;
@@ -2376,11 +2516,44 @@ function onNewDay(day) {
     const spec = rosterSpecs().find((sp) => sp.id === sid);
     if (!spec) return;
     if (station === 22) { give(15, 2); say(spec.name + ' crafted 2 planks overnight'); }
-    else if (station === 46) { give(32, 1); say(spec.name + ' brought in a fresh ration'); }
+    else if (station === 46) { const n = (hasWork('granary') ? 2 : 1) + (boon('kavya') ? 1 : 0); give(32, n); say(spec.name + ' brought in ' + n + ' ration' + (n === 1 ? '' : 's')); }
     /* guards do their work during the raid itself */
   });
+  if (hasWork('statue')) { rpg.coins += 3; }
   if (merchantHere()) say('Sana the traveller has set up by the trading post (day ' + (day + 1) + ')');
   drawRpgHud();
+}
+/* ------------------------------------------------- a reason to open it today
+   Every other clock here is play-time. This one is the real calendar, so the
+   thing waiting for you tomorrow is genuinely only there tomorrow. */
+const todayKey = () => new Date().toISOString().slice(0, 10);
+function rollDaily() {
+  const key = todayKey();
+  if (rpg.daily && rpg.daily.key === key) return false;
+  const yesterday = new Date(Date.now() - 864e5).toISOString().slice(0, 10);
+  if (rpg.lastDay === yesterday) rpg.streak = (rpg.streak || 0) + 1;
+  else if (rpg.lastDay !== key) rpg.streak = 1;
+  rpg.lastDay = key;
+  const seed = [...key].reduce((a, c) => a + c.charCodeAt(0), 0);
+  const [id, need, pay, title] = CONTRACT_POOL[seed % CONTRACT_POOL.length];
+  rpg.daily = { key, block: id, n: need, pay: pay * 2, title, done: false };
+  const bonus = 5 * Math.min(rpg.streak || 1, 7);
+  rpg.coins += bonus;
+  say('Welcome back — ' + rpg.streak + ' day' + (rpg.streak === 1 ? '' : 's') + ' running · +' + bonus + ' marks');
+  return true;
+}
+function deliverDaily() {
+  const d = rpg.daily;
+  if (!d || d.done) return false;
+  if ((inventory.get(d.block) || 0) < d.n) { say('You are short of ' + BLOCKS[d.block].name.toLowerCase()); return false; }
+  take(d.block, d.n);
+  d.done = true;
+  rpg.coins += d.pay;
+  addXp(60);
+  say("Today's commission filled · +" + d.pay + ' marks');
+  drawRpgHud();
+  markProgress();
+  return true;
 }
 /* --------------------------------------------------- the town without you
    Every clock in this game is play-time, so closing the tab used to freeze the
@@ -2400,10 +2573,10 @@ function runAwayDawns(dawns) {
     const spec = rosterSpecs().find((sp) => sp.id === sid);
     if (!spec) return;
     if (station === 22) { gains.set(15, (gains.get(15) || 0) + 2 * dawns); who.push([spec.name, 'worked the bench']); }
-    else if (station === 46) { gains.set(32, (gains.get(32) || 0) + dawns); who.push([spec.name, 'worked the fields']); }
+    else if (station === 46) { gains.set(32, (gains.get(32) || 0) + ((hasWork('granary') ? 2 : 1) + (boon('kavya') ? 1 : 0)) * dawns); who.push([spec.name, 'worked the fields']); }
     else if (station === 45) { guards += 1; who.push([spec.name, 'stood the watch']); }
   });
-  const earned = guards * 2 * dawns;
+  const earned = guards * 2 * dawns + (hasWork('statue') ? 3 * dawns : 0);
   /* wages can empty the purse but never put it in the red — a player should
      not come back to a debt they cannot see coming */
   const wages = crew > 3 ? Math.min(rpg.coins + earned, (crew - 3) * dawns) : 0;
@@ -2452,6 +2625,7 @@ function updateRaid(dt) {
 /** A settler standing in the dark can be driven off until dawn. */
 function harmSettler(settler, amount) {
   if (settler.down) return;
+  if (hasWork('chapel')) return;   /* the chapel is why they hold their ground */
   if (litNearby(Math.floor(settler.pos.x), Math.floor(settler.pos.y), Math.floor(settler.pos.z), SETTLER_LIGHT_RADIUS)) return;
   settler.health = (settler.health === undefined ? SETTLER_HEALTH : settler.health) - amount;
   if (settler.health <= 0) {
@@ -2466,7 +2640,7 @@ function harmSettler(settler, amount) {
 function chewBlock(mob, dt, x, y, z) {
   const id = getBlock(x, y, z);
   if (!id || !edits.get(vkey(x, y, z))) return false;      // only what the player put there
-  if (litNearby(x, y, z, RAID_LIGHT_RADIUS)) { mob.chew = 0; return false; }
+  if (litNearby(x, y, z, frostOn ? 2 : RAID_LIGHT_RADIUS)) { mob.chew = 0; return false; }
   mob.chew = (mob.chew || 0) + dt;
   if (mob.chew < RAID_CHEW_SECONDS) return true;
   mob.chew = 0;
@@ -2515,7 +2689,7 @@ function updateMobs(dt) {
         if ((rpg.assigns || {})[settler.spec.id] !== 45) return;
         if (settler.pos.distanceTo(mob.pos) < 6 && (settler.guardCd || 0) <= 0) {
           settler.guardCd = 1.6;
-          mob.health -= 3;
+          mob.health -= (hasWork('watchtower') ? 6 : 3) + (boon('ganan') ? 2 : 0);
           mob.hurt = 0.25;
           if (mob.health <= 0) { const gi = mobs.indexOf(mob); if (gi >= 0) removeMob(gi); raid.driven += 1; }
         }
@@ -2631,6 +2805,67 @@ function hitMob(mob) {
 /* ------------------------------------------------------------------- loop */
 let last = performance.now(), fpsAcc = 0, fpsFrames = 0, hudTimer = 0, foodTimer = 0, autoSave = 0;
 let siteTimer = 0;
+/* ------------------------------------------------------------ public works
+   queuePrefab already had the settlers raise a building overnight, block by
+   block — it just only ever fired three times, for free, on tier-ups. Marks
+   had nothing to buy past 226 of shop stock. Commissioning turns an unbounded
+   income into the one thing this game is actually about: a town you can see. */
+const PUBLIC_WORKS = [
+  { id:'granary',    name:'Granary',            cost:300,  tier:1,
+    note:'Field hands bring two rations each dawn instead of one',
+    at:[10,-6], blocks:[[0,0,1,15],[1,0,1,15],[2,0,1,15],[0,1,1,15],[2,1,1,15],[0,2,1,15],[1,2,1,15],[2,2,1,15],
+                        [1,1,1,46],[0,0,2,15],[2,2,2,15],[1,0,2,23]] },
+  { id:'watchtower', name:'Watchtower',         cost:500,  tier:1,
+    note:'Settlers on watch strike for 6 instead of 3',
+    at:[-12,-8], blocks:[[0,0,1,4],[1,0,1,4],[0,1,1,4],[1,1,1,4],[0,0,2,4],[1,0,2,4],[0,1,2,4],[1,1,2,4],
+                         [0,0,3,45],[1,1,3,45],[0,1,3,23],[1,0,3,23]] },
+  { id:'storehouse', name:'Storehouse',         cost:800,  tier:2,
+    note:'Arun carries 60 more marks in his purse each day',
+    at:[12,8], blocks:[[0,0,1,15],[1,0,1,15],[2,0,1,15],[0,1,1,15],[2,1,1,15],[0,2,1,15],[1,2,1,15],[2,2,1,15],
+                       [0,0,2,25],[1,0,2,25],[2,0,2,25],[2,2,2,25],[1,1,2,23]] },
+  { id:'chapel',     name:'Chapel',             cost:1200, tier:2,
+    note:'Raiders can no longer drive your settlers off',
+    at:[-12,8], blocks:[[0,0,1,25],[1,0,1,25],[2,0,1,25],[0,1,1,25],[2,1,1,24],[0,2,1,25],[1,2,1,25],[2,2,1,25],
+                        [0,0,2,25],[2,2,2,25],[1,1,2,24],[1,1,3,23]] },
+  { id:'statue',     name:"Founder's Statue",   cost:2000, tier:3,
+    note:'Visitors leave 3 marks at its feet each dawn',
+    at:[0,11], blocks:[[0,0,1,4],[1,0,1,4],[0,1,1,4],[1,1,1,4],[0,0,2,25],[1,0,2,25],[0,1,2,25],[1,1,2,25],
+                       [0,0,3,25],[1,1,3,25],[0,1,4,23],[1,0,4,23]] },
+];
+const hasWork = (id) => (rpg.works || []).includes(id);
+const boon = (id) => (rpg.boons || []).includes(id);
+/* Mira is the architect — her friendship is a discount on the things she builds */
+const workCost = (w) => Math.ceil(w.cost * (boon('mira') ? 0.85 : 1));
+let pendingWork = null;
+function commissionWork(id) {
+  const w = PUBLIC_WORKS.find((x) => x.id === id);
+  if (!w || hasWork(id)) return false;
+  if ((w.tier || 0) > settlementTier()) { say('A ' + SETTLEMENT_TIERS[w.tier].name + ' could support that. Not yet.'); return false; }
+  /* one crew, one job — otherwise a tier-up prefab and a commission interleave
+     and neither building ends up looking like anything */
+  if (buildQueue.length || pendingWork) { say('The crew is already building something'); return false; }
+  const price = workCost(w);
+  if (rpg.coins < price) { say('That costs ' + price + ' marks'); return false; }
+  rpg.coins -= price;
+  pendingWork = id;
+  const hub = settlementHub();
+  const hx = Math.round(hub.x) + w.at[0], hz = Math.round(hub.z) + w.at[1];
+  w.blocks.forEach(([dx, dz, dy, b]) => buildQueue.push({ x: hx + dx, z: hz + dz, dy, id: b }));
+  say('Commissioned: ' + w.name + ' · the crew starts at once');
+  drawRpgHud();
+  markProgress();
+  return true;
+}
+function finishWork() {
+  if (!pendingWork) return;
+  const w = PUBLIC_WORKS.find((x) => x.id === pendingWork);
+  rpg.works = rpg.works || [];
+  rpg.works.push(pendingWork);
+  pendingWork = null;
+  addXp(120);
+  say(w.name + ' stands. ' + w.note + '.');
+  markProgress();
+}
 /* --------------------------------------------------- tier-up: the crew builds
    A new tier is not a caption — overnight the settlers raise something real. */
 const buildQueue = [];
@@ -2659,7 +2894,10 @@ function updateBuildQueue(dt) {
   const b = buildQueue.shift();
   const y = Math.max(heightAt(b.x, b.z), SEA_LEVEL) + b.dy;
   if (!worldBlockAt(b.x, y, b.z)) placeWorldBlock(b.x, y, b.z, b.id);
-  if (!buildQueue.length) say('The crew downs tools — come and see what they made');
+  if (!buildQueue.length) {
+    if (pendingWork) finishWork();
+    else say('The crew downs tools — come and see what they made');
+  }
 }
 function checkTier() {
   const t = settlementTier();
@@ -2824,7 +3062,10 @@ function startGame(fresh) {
   rpg.rescued = rpg.rescued || []; rpg.perks = rpg.perks || {}; rpg.aff = rpg.aff || {};
   rpg.assigns = rpg.assigns || {}; rpg.contracts = rpg.contracts || []; rpg.stamped = rpg.stamped || [];
   rpg.tabletsRead = rpg.tabletsRead || []; rpg.tierSeen = rpg.tierSeen || settlementTier();
+  rpg.works = rpg.works || []; rpg.boons = rpg.boons || []; rpg.favours = rpg.favours || [];
+  rpg.soldMarks = rpg.soldMarks || 0; rpg.wave = rpg.wave || 0; rpg.bestWave = rpg.bestWave || 0;
   if (!rpg.contracts.length) rollContracts();
+  rollDaily();
   spawnSettlers();
   if (!inventory.size) { give(1, 8); give(6, 4); }
   player.pos.x = Math.max(-territory + 2, Math.min(territory - 2, player.pos.x));
@@ -2961,11 +3202,8 @@ function setupTouch() {
         const a = rayVoxel(5);
         if (a && worldBlockAt(a.x, a.y, a.z) === 41) { readTablet(a.x, a.y, a.z); return; }
         if (a && worldBlockAt(a.x, a.y, a.z) === 44) { tryVaultDoor(a.x, a.y, a.z); return; }
-        const q = RPG_QUESTS[rpg.questIndex];
-        if (q && q.kind === 'rescue' && !escort && SITES.camp &&
-            Math.hypot(player.pos.x - SITES.camp.x, player.pos.z - SITES.camp.z) < 8) {
-          beginEscort(EXTRA_SETTLERS[0]); return;
-        }
+        const rescue = pendingRescue();
+        if (rescue) { beginEscort(rescue.spec, rescue.site); return; }
         talkToSettler(nearestSettler(4));
       }
     }, { passive: false });
@@ -2990,7 +3228,13 @@ window.frontier = {
   mining: () => breaking, mouseHeld: () => mouseDown,
   runAwayDawns, openAwayReport, AWAY_DAWN_MS, AWAY_DAWN_CAP,
   setAway: (ms) => { pendingAwayMs = ms; }, awayReport: () => awayReport,
+  setRpg: (patch) => Object.assign(rpg, patch), pendingWork: () => pendingWork,
   tierShortfall, SETTLEMENT_TIERS, jobsDone, markProgress,
+  purseLimit, purseLeft, SELL_PRICES,
+  PUBLIC_WORKS, hasWork, boon, workCost, commissionWork, finishWork,
+  pendingRescue, EXTRA_SETTLERS, escortActive: () => escort,
+  FAVOURS, favoursFor, favourState, deliverFavour,
+  storyDone, WINTER_NAMES, rollDaily, deliverDaily, todayKey, frost: () => frostOn,
   PERKS, buyPerk, perkRank, armorTotal, pouches, dropPouch, completeBreak,
   SITES: () => SITES, planSites, stampSite, checkSites, readTablet, tryVaultDoor, LORE,
   sellToPost, rollContracts, deliverContract, merchantHere, merchantOffers, buyFromMerchant,
