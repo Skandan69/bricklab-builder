@@ -12,14 +12,12 @@
     -webkit-font-smoothing:antialiased;user-select:none}
   canvas{display:block}
   .hidden{display:none!important}
-
   #crosshair{position:fixed;left:50%;top:50%;width:20px;height:20px;margin:-10px 0 0 -10px;
     pointer-events:none;opacity:.85}
   #crosshair:before,#crosshair:after{content:"";position:absolute;background:#fff;
     box-shadow:0 0 2px rgba(0,0,0,.7)}
   #crosshair:before{left:9px;top:2px;width:2px;height:16px}
   #crosshair:after{top:9px;left:2px;height:2px;width:16px}
-
   #hotbar{position:fixed;left:50%;bottom:16px;transform:translateX(-50%);display:flex;gap:5px;
     padding:6px;background:var(--panel);border:1px solid var(--line);border-radius:12px}
   .slot{width:52px;height:52px;border-radius:9px;border:2px solid transparent;background:rgba(255,255,255,.08);
@@ -30,7 +28,6 @@
     text-shadow:0 1px 2px #000}
   .slot small{font-size:9px;opacity:.75;line-height:1;text-align:center;max-width:48px;
     overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-
   #stats{position:fixed;left:14px;top:12px;background:var(--panel);border:1px solid var(--line);
     border-radius:10px;padding:8px 11px;font:11.5px/1.5 ui-monospace,monospace;min-width:150px}
   #vitals{position:fixed;right:14px;top:12px;background:var(--panel);border:1px solid var(--line);
@@ -51,12 +48,10 @@
   #rpgHud strong{display:block;font-size:13px;margin:2px 0}
   #rpgHud p{margin:0;opacity:.72;font-size:11px}
   @media(max-width:700px){#rpgHud{bottom:78px;width:240px}}
-
   #hint{position:fixed;left:50%;top:22px;transform:translateX(-50%);background:var(--panel);
     border:1px solid var(--line);border-radius:20px;padding:6px 14px;font-size:12px;opacity:0;
     transition:opacity .25s;pointer-events:none}
   #hint.show{opacity:1}
-
   #panel{position:fixed;inset:0;background:rgba(6,11,18,.72);backdrop-filter:blur(4px);
     display:flex;align-items:center;justify-content:center;z-index:20}
   .card{background:#111a26;border:1px solid var(--line);border-radius:16px;padding:22px 24px;
@@ -86,7 +81,6 @@
   .settler-card{background:rgba(255,255,255,.06);border:1px solid var(--line);border-radius:10px;padding:10px}
   .settler-card b{display:block;color:#ffd166}.settler-card small{display:block;opacity:.66;margin-top:3px}
   .shop-price{color:#ffd166;font-weight:800}
-
   /* Full-screen Frontier entrance */
   .card.title-card{width:100vw;height:100vh;max-height:none;padding:0;border:0;border-radius:0;overflow:auto;
     background:radial-gradient(circle at 78% 4%,rgba(255,205,92,.22),transparent 27%),linear-gradient(145deg,#071728,#102b3d 48%,#173f41);
@@ -159,7 +153,6 @@
 </head>
 <body>
 <div id="crosshair" class="hidden"></div>
-
 <div id="stats" class="hidden">
   <div>fps <span id="fps">–</span></div>
   <div>xyz <span id="pos">–</span></div>
@@ -168,28 +161,26 @@
   <div>time <span id="clock">–</span></div>
   <div>land <span id="land">–</span></div>
 </div>
-
 <div id="vitals" class="hidden">
-  <label>Health</label><div class="bar health"><i id="healthBar" style="width:100%"></i></div>
+  <div id="oreping" style="color:#8fe6ec;font-size:11px;min-height:14px"></div>
+  <div id="bossbar" class="hidden" style="color:#ffb4a2;font-size:12px;font-weight:700"></div>
+  <label>Health <span id="armorTag" style="opacity:.7;font-weight:400"></span></label><div class="bar health"><i id="healthBar" style="width:100%"></i></div>
   <label>Food</label><div class="bar food"><i id="foodBar" style="width:100%"></i></div>
   <div class="muted" id="mode">Survival</div>
 </div>
-
 <div id="hint"></div>
 <div id="rpgHud" class="hidden" aria-live="polite">
   <div class="rpgTop"><b id="rpgLevel">Builder level 1</b><span id="rpgSettlement">Camp</span><span id="rpgCoins">0 frontier marks</span></div>
   <div class="xp"><i id="rpgXp" style="width:0%"></i></div>
-  <small>Current quest</small>
+  <small>Chapter · quest</small>
   <strong id="rpgQuest">Gather timber</strong>
   <p id="rpgQuestProgress">Mine 3 logs · 0 / 3</p>
 </div>
 <div id="hotbar" class="hidden"></div>
 <div id="interact" class="hidden">R · Talk to settler</div>
-
 <div id="panel">
   <div class="card" id="card"></div>
 </div>
-
 <script src="/three.min.js"></script>
 <script>
 /* =========================================================================
@@ -199,7 +190,6 @@
    ========================================================================= */
 (function () {
 'use strict';
-
 /* ----------------------------------------------------------------- config */
 const CHUNK_X = 16, CHUNK_Y = 96, CHUNK_Z = 16;
 const SEA_LEVEL = 32;
@@ -212,7 +202,6 @@ const MESH_BUDGET = LOW_POWER ? 1 : 2; // rebuilt per streaming tick
 const STREAM_INTERVAL = LOW_POWER ? 0.34 : 0.22;
 const SAVE_KEY = 'bricklab-frontier-v1';
 const DAY_LENGTH = 600;             // seconds for a full day
-
 /* ------------------------------------------------------------------ blocks
    id 0 is air. `hard` is seconds to break bare-handed; `tool` names the tool
    family that speeds it up; `drop` is what lands in the bag. */
@@ -250,12 +239,25 @@ const BLOCKS = [
   { id:30, name:'Stone axe',  colour:0x8d949d, item:true, tool:'axe',    power:4, uses:130 },
   { id:31, name:'Shovel',     colour:0x8d949d, item:true, tool:'shovel', power:4, uses:130 },
   { id:32, name:'Bread',      colour:0xd9a05b, item:true, food:6 },
+  /* ---- Chronicles update: arms, armour and the old frontier ---- */
+  { id:33, name:'Spear',       colour:0xc8b08a, item:true, tool:'weapon', power:3, uses:90 },
+  { id:34, name:'Iron sword',  colour:0xdfe6ee, item:true, tool:'weapon', power:6, uses:200 },
+  { id:35, name:'Hide',        colour:0xb98f5e, item:true },
+  { id:36, name:'Hide cap',    colour:0xb98f5e, item:true, armor:1 },
+  { id:37, name:'Hide tunic',  colour:0xa87d4e, item:true, armor:2 },
+  { id:38, name:'Iron helm',   colour:0xcfd6de, item:true, armor:2 },
+  { id:39, name:'Iron plate',  colour:0xbfc8d2, item:true, armor:3 },
+  { id:40, name:'Supply pouch',colour:0xd9a441, hard:0.3, tool:'shovel' },
+  { id:41, name:'Lore tablet', colour:0x8fb6a8, hard:99, tool:'pick' },
+  { id:42, name:'Ruin stone',  colour:0x6f7b74, hard:2.6, tool:'pick' },
+  { id:43, name:'Crystal key', colour:0x8fe6ec, item:true },
+  { id:44, name:'Vault door',  colour:0x394048, hard:99, tool:'pick' },
+  { id:45, name:'Watchpost',   colour:0x9a6a3a, side:0x7d5836, hard:1.8, tool:'axe' },
+  { id:46, name:'Field plot',  colour:0x6d5a30, hard:0.6, tool:'shovel' },
 ];
-
 const isSolid = (id) => id > 0 && !BLOCKS[id].liquid && !BLOCKS[id].item;
 const isOpaque = (id) => isSolid(id) && !BLOCKS[id].alpha;
 const PLACEABLE = [1,2,3,4,5,6,7,9,15,22,23,24,25];
-
 /* ------------------------------------------------------------------ noise
    Deterministic value noise — same seed always yields the same world. */
 let SEED = 1337;
@@ -291,7 +293,6 @@ function fbm2(x, z, octaves, scale) {
   }
   return sum / norm;
 }
-
 /* --------------------------------------------------------------- terrain */
 const BIOMES = { plains:0, forest:1, desert:2, peaks:3, tundra:4 };
 function biomeAt(x, z) {
@@ -334,20 +335,17 @@ function oreAt(x, y, z) {
   if (y < 38 && v > 0.78) return 11;         // copper
   return 10;                                  // coal
 }
-
 /* ----------------------------------------------------------------- world */
 let worldName = 'First Frontier';
 const chunks = new Map();
 const edits = new Map();                     // "x,y,z" -> id, the only thing saved
 const ckey = (cx, cz) => cx + ',' + cz;
 const vkey = (x, y, z) => x + ',' + y + ',' + z;
-
 function makeChunk(cx, cz) {
   return { cx, cz, data: new Uint8Array(CHUNK_X * CHUNK_Y * CHUNK_Z),
            generated: false, dirty: true, mesh: null, water: null, faces: 0 };
 }
 const idx = (lx, y, lz) => (lx * CHUNK_Z + lz) * CHUNK_Y + y;
-
 function generateChunk(chunk) {
   const { cx, cz, data } = chunk;
   for (let lx = 0; lx < CHUNK_X; lx++) {
@@ -398,7 +396,6 @@ function generateChunk(chunk) {
   });
   chunk.generated = true;
 }
-
 function getBlock(x, y, z) {
   if (y < 0 || y >= CHUNK_Y) return 0;
   const cx = Math.floor(x / CHUNK_X), cz = Math.floor(z / CHUNK_Z);
@@ -429,7 +426,6 @@ function markDirty(cx, cz) {
   const c = chunks.get(ckey(cx, cz));
   if (c) c.dirty = true;
 }
-
 /* ---------------------------------------------------------------- meshing
    One geometry per chunk, and only the faces that touch air. Vertex colours
    carry the block colour and the per-face shading, so there are no textures
@@ -442,16 +438,13 @@ const FACES = [
   { dir:[0,0, 1], shade:0.88, corners:[[1,0,1],[1,1,1],[0,1,1],[0,0,1]] },
   { dir:[0,0,-1], shade:0.72, corners:[[0,0,0],[0,1,0],[1,1,0],[1,0,0]] },
 ];
-
 /* the renderer encodes to sRGB on the way out, so feed it linear colour */
 const toLinear = (c) => (c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4));
-
 function meshChunk(chunk) {
   const solid = { pos: [], norm: [], col: [] };
   const fluid = { pos: [], norm: [], col: [] };
   const baseX = chunk.cx * CHUNK_X, baseZ = chunk.cz * CHUNK_Z;
   let faces = 0;
-
   for (let lx = 0; lx < CHUNK_X; lx++) {
     for (let lz = 0; lz < CHUNK_Z; lz++) {
       for (let y = 0; y < CHUNK_Y; y++) {
@@ -493,7 +486,6 @@ function meshChunk(chunk) {
   applyGeometry(chunk, 'water', fluid, waterMaterial);
   chunk.dirty = false;
 }
-
 function applyGeometry(chunk, slot, buf, material) {
   if (chunk[slot]) { scene.remove(chunk[slot]); chunk[slot].geometry.dispose(); chunk[slot] = null; }
   if (!buf.pos.length) return;
@@ -507,7 +499,6 @@ function applyGeometry(chunk, slot, buf, material) {
   scene.add(mesh);
   chunk[slot] = mesh;
 }
-
 /* ------------------------------------------------------------------ scene */
 const scene = new THREE.Scene();
 let renderer;
@@ -521,35 +512,29 @@ renderer.setPixelRatio(Math.min(devicePixelRatio, LOW_POWER ? 1 : 1.5));
 renderer.setSize(innerWidth, innerHeight);
 renderer.outputEncoding = THREE.sRGBEncoding;
 document.body.appendChild(renderer.domElement);
-
 const camera = new THREE.PerspectiveCamera(72, innerWidth / innerHeight, 0.1, 1000);
 const opaqueMaterial = new THREE.MeshLambertMaterial({ vertexColors: true });
 const waterMaterial = new THREE.MeshLambertMaterial({
   vertexColors: true, transparent: true, opacity: 0.72, depthWrite: false });
-
 const sun = new THREE.DirectionalLight(0xffffff, 0.9);
 const sky = new THREE.HemisphereLight(0xbfe4ff, 0x51606e, 0.6);
 scene.add(sun, sky, sun.target);
 scene.fog = new THREE.Fog(0x8fd0ff, RENDER_DIST * CHUNK_X * 0.55, RENDER_DIST * CHUNK_X * 1.15);
-
 const highlight = new THREE.Mesh(
   new THREE.BoxGeometry(1.004, 1.004, 1.004),
   new THREE.MeshBasicMaterial({ color: 0x000000, wireframe: true, transparent: true, opacity: 0.5 }));
 highlight.visible = false;
 scene.add(highlight);
-
 const cracks = new THREE.Mesh(
   new THREE.BoxGeometry(1.02, 1.02, 1.02),
   new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.22, wireframe: true }));
 cracks.visible = false;
 scene.add(cracks);
-
 addEventListener('resize', () => {
   camera.aspect = innerWidth / innerHeight;
   camera.updateProjectionMatrix();
   renderer.setSize(innerWidth, innerHeight);
 });
-
 /* ----------------------------------------------------------------- player */
 const player = {
   pos: new THREE.Vector3(8, 70, 8),
@@ -562,7 +547,6 @@ const player = {
 };
 const keys = new Set();
 let pointerLocked = false;
-
 function blockedAt(x, y, z) {
   const id = getBlock(Math.floor(x), Math.floor(y), Math.floor(z));
   return isSolid(id);
@@ -592,7 +576,6 @@ function moveAxis(axis, amount) {
     player.vel.y = 0;
   }
 }
-
 /* ---------------------------------------------------------------- raycast
    Amanatides & Woo grid traversal — walks the voxels the ray actually enters
    instead of testing every mesh in the world. */
@@ -625,13 +608,11 @@ function rayVoxel(maxDist) {
   }
   return null;
 }
-
 /* -------------------------------------------------------------- inventory */
 const inventory = new Map();          // id -> count
 const hotbar = [1, 2, 3, 6, 15, 22, 23, 24, 0];
 let hotbarSlot = 0;
 const tools = new Map();              // id -> remaining uses
-
 function give(id, n) {
   if (!id) return;
   inventory.set(id, (inventory.get(id) || 0) + n);
@@ -655,7 +636,6 @@ function bestTool(family) {
   });
   return best;
 }
-
 /* --------------------------------------------------------------- crafting */
 const RECIPES = [
   { out:15, n:4, need:[[6,1]],           name:'Planks',      note:'from one log' },
@@ -671,17 +651,57 @@ const RECIPES = [
   { out:24, n:2, need:[[5,2],[16,1]],    name:'Glass',       note:'sand fired with coal', bench:true },
   { out:25, n:4, need:[[2,4],[16,1]],    name:'Bricks',      note:'soil fired with coal', bench:true },
   { out:32, n:1, need:[[7,3],[5,1]],     name:'Bread',       note:'a rough field ration' },
+  { out:33, n:1, need:[[15,2],[21,2]],   name:'Spear',       note:'planks and sticks' },
+  { out:34, n:1, need:[[18,2],[21,1]],   name:'Iron sword',  note:'iron and a stick', bench:true },
+  { out:36, n:1, need:[[35,2]],          name:'Hide cap',    note:'two hides' },
+  { out:37, n:1, need:[[35,4]],          name:'Hide tunic',  note:'four hides' },
+  { out:38, n:1, need:[[18,2],[35,1]],   name:'Iron helm',   note:'iron over hide', bench:true },
+  { out:39, n:1, need:[[18,4],[35,2]],   name:'Iron plate',  note:'iron over hide', bench:true },
+  { out:43, n:1, need:[[20,3],[19,1]],   name:'Crystal key', note:'three shards round a gold core', bench:true },
+  { out:45, n:1, need:[[4,4],[23,1],[21,2]], name:'Watchpost',  note:'a lit guard perch' },
+  { out:46, n:1, need:[[2,4],[21,1]],    name:'Field plot',  note:'tilled soil' },
 ];
-
+const CHAPTERS = [
+  { n:1, name:'Alone',          intro:'One pack, one axe, and a frontier nobody wanted. Make it through the first night.' },
+  { n:2, name:'The Others',     intro:'Smoke on the ridge at dawn. Somebody else survived out here — go and see who.' },
+  { n:3, name:'The Under-Roads',intro:'Leela keeps finding worked stone under the soil. Someone built here long before us — and something still lives below.' },
+  { n:4, name:'The Caravan',    intro:'Word of the settlement has travelled. Marks change hands now; make this a town worth the journey.' },
+  { n:5, name:'The Old Frontier',intro:'Six tablets, one door, and the question the first settlers left behind: why did they go?' },
+];
 const RPG_QUESTS = [
-  { id:'timber', title:'Gather timber', detail:'Mine 3 logs', kind:'gather', block:6, target:3, xp:30, coins:5 },
-  { id:'planks', title:'Learn the craft', detail:'Craft 4 planks', kind:'craft', block:15, target:4, xp:35, coins:6 },
-  { id:'stone', title:'Stone for a foundation', detail:'Mine 6 stone blocks', kind:'gather', block:3, target:6, xp:45, coins:8 },
-  { id:'shelter', title:'Raise a shelter', detail:'Place 8 building blocks', kind:'place', target:8, xp:55, coins:10 },
-  { id:'guardian', title:'Guard the frontier', detail:'Defeat one hostile creature', kind:'defeat', target:1, xp:75, coins:15 },
+  /* chapter 1 — Alone (the original arc, untouched) */
+  { ch:1, id:'timber', title:'Gather timber', detail:'Mine 3 logs', kind:'gather', block:6, target:3, xp:30, coins:5 },
+  { ch:1, id:'planks', title:'Learn the craft', detail:'Craft 4 planks', kind:'craft', block:15, target:4, xp:35, coins:6 },
+  { ch:1, id:'stone', title:'Stone for a foundation', detail:'Mine 6 stone blocks', kind:'gather', block:3, target:6, xp:45, coins:8 },
+  { ch:1, id:'shelter', title:'Raise a shelter', detail:'Place 8 building blocks', kind:'place', target:8, xp:55, coins:10 },
+  { ch:1, id:'guardian', title:'Guard the frontier', detail:'Defeat one hostile creature', kind:'defeat', target:1, xp:75, coins:15 },
+  /* chapter 2 — The Others */
+  { ch:2, id:'smoke', title:'Smoke on the ridge', detail:'Find the campfire to the north-east (follow the map ping)', kind:'visit', site:'camp', target:1, xp:60, coins:12 },
+  { ch:2, id:'rescue', title:'Bring Devan home', detail:'Talk to Devan at his camp, then walk him back to the settlement', kind:'rescue', target:1, xp:90, coins:20 },
+  { ch:2, id:'beds', title:'Shelter for the newcomer', detail:'Place 12 building blocks near the settlement', kind:'place', target:12, xp:70, coins:15 },
+  { ch:2, id:'arm', title:'Arm the watch', detail:'Craft a spear', kind:'craft', block:33, target:1, xp:60, coins:12 },
+  { ch:2, id:'firstnight', title:'The first bad night', detail:'Drive off a raid (reach Hamlet, then survive one night raid)', kind:'raid', target:1, xp:120, coins:30, reqTier:1 },
+  /* chapter 3 — The Under-Roads */
+  { ch:3, id:'words', title:'Words in the stone', detail:'Find and read a lore tablet (Leela marks ruins on your map)', kind:'read', target:1, xp:80, coins:15, reqTier:1 },
+  { ch:3, id:'sunken', title:'The sunken room', detail:'Reach the old ruin marked on the map', kind:'visit', site:'ruinA', target:1, xp:70, coins:12, reqTier:1 },
+  { ch:3, id:'oldwalls', title:'Old walls, new walls', detail:'Mine 6 ruin stone from the ancient works', kind:'gather', block:42, target:6, xp:80, coins:18, reqTier:1 },
+  { ch:3, id:'mother', title:'The Burrow Mother', detail:'Something guards the deep lair — end it', kind:'boss', target:1, xp:200, coins:60, reqTier:1 },
+  { ch:3, id:'key', title:'Shape the key', detail:'Craft the crystal key at a workbench', kind:'craft', block:43, target:1, xp:90, coins:20, reqTier:1 },
+  /* chapter 4 — The Caravan */
+  { ch:4, id:'working', title:'A working town', detail:'Complete 3 settlement jobs', kind:'job', target:3, xp:90, coins:20, reqTier:2 },
+  { ch:4, id:'sealed', title:'Signed and sealed', detail:'Fulfil a contract from the board', kind:'contract', target:1, xp:110, coins:25, reqTier:2 },
+  { ch:4, id:'surplus', title:'Surplus to the post', detail:'Sell 20 items to Arun', kind:'sell', target:20, xp:80, coins:0, reqTier:2 },
+  { ch:4, id:'traveller', title:'The traveller', detail:'Buy something from Sana the travelling merchant (every third day)', kind:'merchant', target:1, xp:90, coins:15, reqTier:2 },
+  { ch:4, id:'walls', title:'Raise the walls', detail:'Place 40 building blocks', kind:'place', target:40, xp:120, coins:30, reqTier:2 },
+  /* chapter 5 — The Old Frontier */
+  { ch:5, id:'sixwords', title:'The six voices', detail:'Read 3 more lore tablets scattered across the frontier', kind:'read', target:3, xp:150, coins:30, reqTier:3 },
+  { ch:5, id:'door', title:'Behind the old door', detail:'Open the vault with the crystal key', kind:'vault', target:1, xp:200, coins:50, reqTier:3 },
+  { ch:5, id:'holdline', title:'Hold the line', detail:'Drive off 2 more night raids', kind:'raid', target:2, xp:180, coins:45, reqTier:3 },
+  { ch:5, id:'warlord', title:'The Warlord at the gate', detail:'The raids have a leader now. Face the Warlord when night falls', kind:'boss', target:1, xp:300, coins:100, reqTier:3 },
 ];
-const freshRpg = () => ({ level:1, xp:0, coins:0, placed:0, questIndex:0, questProgress:0, completed:[], jobs:{} });
-
+const freshRpg = () => ({ level:1, xp:0, coins:0, placed:0, questIndex:0, questProgress:0, completed:[], jobs:{},
+  perkPts:0, perks:{}, aff:{}, rescued:[], tierSeen:0, tabletsRead:[], stamped:[], vaultOpen:false,
+  expansions:0, sold:0, contractsDone:0, assigns:{}, dayIndex:-1, contracts:[], merchantBought:0, raidsSurvived:0, bossKills:[] });
 /* The settlement grows out of what you actually build and who you help, not
    out of a level number. Each tier unlocks more of Arun's stock. */
 const SETTLEMENT_TIERS = [
@@ -699,9 +719,38 @@ function settlementTier() {
 }
 /* Repeat a settlement job and it pays less each time, so no purchase-and-deliver
    loop can ever out-earn actually gathering. */
-const jobReward = (job, times) => Math.max(3, Math.round(job.coins * Math.pow(0.55, times)));
-const jobXpFor  = (job, times) => Math.max(5, Math.round(job.xp    * Math.pow(0.55, times)));
+const JOB_DECAY = () => Math.min(0.8, 0.55 + 0.1 * perkRank('settlerbond'));
+const jobReward = (job, times) => Math.max(3, Math.round(job.coins * Math.pow(JOB_DECAY(), times)));
+const jobXpFor  = (job, times) => Math.max(5, Math.round(job.xp    * Math.pow(JOB_DECAY(), times)));
 let rpg = freshRpg();
+/* ------------------------------------------------------------- perks
+   One point per level. Every perk bends a number that already exists, so
+   builds diverge without a single new mechanic to teach. */
+const PERKS = [
+  { id:'ironarm',   name:'Iron arm',       max:3, d:'+1 swing damage per rank' },
+  { id:'timberwise',name:'Timberwise',     max:2, d:'logs drop +1 per rank' },
+  { id:'quickfeet', name:'Quick feet',     max:3, d:'walk and run a little faster per rank' },
+  { id:'haggler',   name:'Haggler',        max:3, d:'Arun\'s prices −8% per rank' },
+  { id:'settlerbond',name:'Settler\'s bond',max:2, d:'repeat-job pay decays slower per rank' },
+  { id:'nightwatch',name:'Nightwatch',     max:2, d:'torches calm a wider area per rank' },
+  { id:'prospector',name:'Prospector',     max:2, d:'sense ore through nearby stone' },
+];
+const perkRank = (id) => (rpg.perks && rpg.perks[id]) || 0;
+function buyPerk(id) {
+  const perk = PERKS.find((p) => p.id === id);
+  if (!perk || (rpg.perkPts || 0) < 1 || perkRank(id) >= perk.max) return false;
+  rpg.perkPts -= 1;
+  rpg.perks[id] = perkRank(id) + 1;
+  say(perk.name + ' rank ' + rpg.perks[id]);
+  drawRpgHud();
+  return true;
+}
+/* best piece per slot counts — carrying two tunics is a spare, not double armour */
+function armorTotal() {
+  const head = [38, 36].find((id) => (inventory.get(id) || 0) > 0);
+  const body = [39, 37].find((id) => (inventory.get(id) || 0) > 0);
+  return (head ? BLOCKS[head].armor : 0) + (body ? BLOCKS[body].armor : 0);
+}
 const xpNeeded = (level) => 70 + (level - 1) * 45;
 function drawRpgHud() {
   const quest = RPG_QUESTS[rpg.questIndex];
@@ -720,13 +769,15 @@ function addXp(amount) {
   while (rpg.xp >= xpNeeded(rpg.level)) {
     rpg.xp -= xpNeeded(rpg.level);
     rpg.level += 1;
-    say('Builder level ' + rpg.level + ' reached');
+    rpg.perkPts = (rpg.perkPts || 0) + 1;
+    say('Builder level ' + rpg.level + ' · +1 perk point (open the journal)');
   }
   drawRpgHud();
 }
 function questEvent(kind, block, amount) {
   const quest = RPG_QUESTS[rpg.questIndex];
   if (!quest || quest.kind !== kind || (quest.block && quest.block !== block)) return;
+  if ((quest.reqTier || 0) > settlementTier()) return;   // the story waits for the settlement
   rpg.questProgress += amount || 1;
   if (rpg.questProgress >= quest.target) {
     rpg.completed.push(quest.id);
@@ -735,6 +786,12 @@ function questEvent(kind, block, amount) {
     rpg.questProgress = 0;
     addXp(quest.xp);
     say('Quest complete: ' + quest.title + ' · +' + quest.coins + ' marks');
+    const next = RPG_QUESTS[rpg.questIndex];
+    if (next && quest.ch !== next.ch) {
+      const chap = CHAPTERS.find((c) => c.n === next.ch);
+      if (chap) say('— Chapter ' + chap.n + ': ' + chap.name + ' —');
+    }
+    if (!next) say('The frontier keeps its last secret no longer. Epilogue in the journal.');
   }
   drawRpgHud();
 }
@@ -754,6 +811,99 @@ const FRONTIER_SHOP = [
   { id:25, n:8, price:26, tier:2, name:'8 bricks' },
   { id:24, n:6, price:30, tier:3, name:'6 glass' },
 ];
+const shopPrice = (base) => Math.max(1, Math.ceil(base * (1 - 0.08 * perkRank('haggler')) * (affOf('arun') >= 4 ? 0.95 : 1)));
+/* ------------------------------------------------------- selling & contracts
+   Arun buys at well under his selling price — the spread is the anti-loop. */
+const SELL_PRICES = { 16:2, 17:3, 18:6, 19:10, 20:8, 15:1, 4:1, 25:2, 24:3, 5:1, 2:1, 3:1, 6:1, 42:2, 32:2, 35:2 };
+function sellToPost(id, n) {
+  const each = SELL_PRICES[id];
+  const have = inventory.get(id) || 0;
+  const count = Math.min(n || have, have);
+  if (!each || count <= 0) return 0;
+  take(id, count);
+  const paid = each * count;
+  rpg.coins += paid;
+  rpg.sold = (rpg.sold || 0) + count;
+  questEvent('sell', 0, count);
+  say('Sold ' + count + ' ' + BLOCKS[id].name.toLowerCase() + ' · +' + paid + ' marks');
+  drawRpgHud();
+  return paid;
+}
+const CONTRACT_POOL = [
+  [4, 40, 46, 'The mason wants cobble'], [15, 30, 34, 'Crates for the caravan'],
+  [25, 20, 52, 'Bricks for a far chimney'], [23, 10, 44, 'Torches for the pass'],
+  [16, 12, 40, 'Coal for the winter cart'], [24, 8, 42, 'Glass for a chapel window'],
+];
+function rollContracts() {
+  const day = Math.floor(clock / DAY_LENGTH);
+  const pick = (k) => CONTRACT_POOL[(day * 3 + k * 5 + SEED) % CONTRACT_POOL.length];
+  rpg.contracts = [0, 1].map((k) => {
+    const [id, n, pay, title] = pick(k);
+    return { id: 'c' + day + '-' + k, block: id, n, pay, title, deadline: (day + 1) * DAY_LENGTH, done: false };
+  });
+}
+function deliverContract(cid) {
+  const c = (rpg.contracts || []).find((x) => x.id === cid);
+  if (!c || c.done || clock > c.deadline) return false;
+  if ((inventory.get(c.block) || 0) < c.n) { say('You are short of ' + BLOCKS[c.block].name.toLowerCase()); return false; }
+  take(c.block, c.n);
+  c.done = true;
+  rpg.coins += c.pay;
+  rpg.contractsDone = (rpg.contractsDone || 0) + 1;
+  addXp(30);
+  questEvent('contract', 0, 1);
+  say('Contract fulfilled · +' + c.pay + ' marks');
+  drawRpgHud();
+  return true;
+}
+/* Sana appears every third day with a short, expensive list. */
+const merchantHere = () => Math.floor(clock / DAY_LENGTH) % 3 === 2;
+const MERCHANT_POOL = [
+  { id:34, n:1, price:70, name:'Iron sword' }, { id:35, n:3, price:24, name:'3 hides' },
+  { id:20, n:2, price:36, name:'2 crystal shards' }, { id:39, n:1, price:80, name:'Iron plate' },
+  { id:19, n:2, price:40, name:'2 gold' }, { id:23, n:8, price:30, name:'8 torches' },
+];
+function merchantOffers() {
+  const day = Math.floor(clock / DAY_LENGTH);
+  return [0, 1, 2].map((k) => MERCHANT_POOL[(day + k * 7 + SEED) % MERCHANT_POOL.length]);
+}
+function buyFromMerchant(k) {
+  if (!merchantHere()) { say('Sana is on the road — she returns every third day'); return false; }
+  const offer = merchantOffers()[k];
+  if (!offer || rpg.coins < offer.price) { say('You need more frontier marks'); return false; }
+  rpg.coins -= offer.price;
+  give(offer.id, offer.n);
+  if (BLOCKS[offer.id].uses && !tools.has(offer.id)) tools.set(offer.id, BLOCKS[offer.id].uses);
+  rpg.merchantBought = (rpg.merchantBought || 0) + 1;
+  questEvent('merchant', 0, 1);
+  say('Sana: “A fair trade.” · ' + offer.name);
+  drawRpgHud();
+  return true;
+}
+const affOf = (id) => (rpg.aff && rpg.aff[id]) || 0;
+function addAff(id, n) { rpg.aff = rpg.aff || {}; rpg.aff[id] = Math.min(10, affOf(id) + n); }
+function stationBuilt(id) {
+  const hub = settlementHub();
+  const hx = Math.round(hub.x), hz = Math.round(hub.z);
+  for (let dx = -16; dx <= 16; dx += 1) for (let dz = -16; dz <= 16; dz += 1) {
+    const y = Math.max(heightAt(hx + dx, hz + dz), SEA_LEVEL);
+    for (let dy = 0; dy <= 3; dy++) if (getBlock(hx + dx, y + dy, hz + dz) === id) return true;
+  }
+  return false;
+}
+function cycleAssign(sid) {
+  const order = [null, 22, 46, 45];
+  const cur = (rpg.assigns || {})[sid] || null;
+  let next = order[(order.indexOf(cur) + 1) % order.length];
+  let guard = 0;
+  while (next && !stationBuilt(next) && guard++ < 4) next = order[(order.indexOf(next) + 1) % order.length];
+  rpg.assigns = rpg.assigns || {};
+  if (next) rpg.assigns[sid] = next; else delete rpg.assigns[sid];
+  const nm = next === 22 ? 'the workshop (2 planks each dawn)' : next === 46 ? 'the fields (a ration each dawn)' : next === 45 ? 'the watch (fights in raids)' : 'no duty';
+  say((rosterSpecs().find((sp) => sp.id === sid) || { name: 'The settler' }).name + ' assigned to ' + nm +
+      (next && !stationBuilt(next) ? '' : ''));
+  if (next === null) say('Tip: duties need their station built near the settlement — workbench, field plot or watchpost');
+}
 function jobReady(job) {
   return job.need.every(([id,n]) => (inventory.get(id) || 0) >= n);
 }
@@ -766,6 +916,8 @@ function completeSettlementJob(id) {
   job.need.forEach(([block,n]) => take(block,n));
   rpg.jobs[id] = times + 1;
   rpg.coins += coins;
+  addAff(job.settler.toLowerCase(), 1);
+  questEvent('job', 0, 1);
   addXp(xp);
   say(job.settler + ': job complete · +' + coins + ' marks');
   openJournal();
@@ -778,8 +930,9 @@ function buyFromTradingPost(index) {
     say('Arun stocks that once the settlement reaches ' + SETTLEMENT_TIERS[offer.tier].name);
     return false;
   }
-  if (rpg.coins < offer.price) { say('You need more frontier marks'); return false; }
-  rpg.coins -= offer.price;
+  const price = shopPrice(offer.price);
+  if (rpg.coins < price) { say('You need more frontier marks'); return false; }
+  rpg.coins -= price;
   give(offer.id, offer.n);
   /* durability belongs to the tool you are holding — buying a spare must not
      silently repair the worn one you already carry */
@@ -808,7 +961,6 @@ function craft(recipe) {
   say('Crafted ' + recipe.name);
   openInventory();
 }
-
 function openInventory() {
   card.className = 'card';
   panelMode = 'inventory';
@@ -856,11 +1008,36 @@ function openJournal() {
         : 'The settlement has reached its highest tier.';
       return `<h2>Settlement</h2><div class="settler-card"><b>${SETTLEMENT_TIERS[t].name}</b><strong>${SETTLEMENT_TIERS[t].note}</strong><small>${progress}</small></div>`;
     })()}
-    <h2>Story chapter</h2>
-    <div class="settler-card"><b>${quest ? 'Current quest' : 'Chapter complete'}</b><strong>${quest ? quest.title : 'Founder of the frontier'}</strong><small>${quest ? quest.detail + ' · ' + rpg.questProgress + '/' + quest.target : 'You completed the first settlement chapter.'}</small></div>
+    ${(() => {
+      const chap = quest ? CHAPTERS.find((c) => c.n === quest.ch) : CHAPTERS[CHAPTERS.length - 1];
+      const done = RPG_QUESTS.filter((q2) => q2.ch === (quest ? quest.ch : 5) && rpg.completed.includes(q2.id)).length;
+      const inCh = RPG_QUESTS.filter((q2) => q2.ch === (quest ? quest.ch : 5)).length;
+      const gate = quest && (quest.reqTier || 0) > settlementTier()
+        ? '<small style="color:#ffd166">The story waits — grow the settlement to ' + SETTLEMENT_TIERS[quest.reqTier].name + ' first.</small>' : '';
+      return `<h2>Chapter ${chap.n} · ${chap.name} <span class="muted" style="font-weight:400">${done}/${inCh}</span></h2>
+      <p class="muted" style="font-style:italic">${chap.intro}</p>
+      <div class="settler-card"><b>${quest ? 'Current quest' : 'Epilogue'}</b><strong>${quest ? quest.title : 'The frontier is yours'}</strong><small>${quest ? quest.detail + ' · ' + rpg.questProgress + '/' + quest.target : 'Every voice read, every door opened, every raid held. What you build now, you build for its own sake.'}</small>${gate}</div>`;
+    })()}
+    <h2>Perks <span class="muted" style="font-weight:400">${rpg.perkPts || 0} point${(rpg.perkPts || 0) === 1 ? '' : 's'} to spend</span></h2>
+    <div class="settler-grid">${PERKS.map((p) => {
+      const r = perkRank(p.id);
+      const can = (rpg.perkPts || 0) > 0 && r < p.max;
+      return `<div class="settler-card"><b>${p.name} ${'★'.repeat(r)}${'☆'.repeat(p.max - r)}</b><small>${p.d}</small><button data-perk="${p.id}" ${can ? '' : 'disabled'}>${r >= p.max ? 'Mastered' : 'Take rank'}</button></div>`;
+    }).join('')}</div>
+    <h2>The crew</h2>
+    <div class="settler-grid">${rosterSpecs().map((spec) => {
+      const hearts = Math.round(affOf(spec.id) / 2);
+      const duty = (rpg.assigns || {})[spec.id];
+      const dutyName = duty === 22 ? 'Workshop' : duty === 45 ? 'Watch' : duty === 46 ? 'Fields' : 'Free';
+      return `<div class="settler-card"><b>${spec.name} · ${spec.role}</b><small>${'❤'.repeat(hearts)}${'♡'.repeat(5 - hearts)} · duty: ${dutyName}</small><button data-assign="${spec.id}">Change duty</button></div>`;
+    }).join('')}</div>
+    ${(rpg.tabletsRead || []).length ? `<h2>Codex · voices in the stone ${(rpg.tabletsRead || []).length}/6</h2>
+    <div class="settler-card"><small>${LORE.slice(0, Math.min(6, (rpg.tabletsRead || []).length)).map((l) => l.split(' — ')[0]).join(' · ')}</small></div>` : ''}
     <h2>Repeatable settlement jobs</h2><div class="settler-grid">${jobs}</div>
     <div class="row"><button class="primary" id="btnCloseJournal">Return to world</button><button id="btnTradeJournal">Trading post</button><button id="btnBagJournal">Backpack</button></div>`;
   card.querySelectorAll('[data-job]').forEach((button) => button.onclick = () => completeSettlementJob(button.dataset.job));
+  card.querySelectorAll('[data-perk]').forEach((button) => button.onclick = () => { buyPerk(button.dataset.perk); openJournal(); });
+  card.querySelectorAll('[data-assign]').forEach((button) => button.onclick = () => { cycleAssign(button.dataset.assign); openJournal(); });
   document.getElementById('btnCloseJournal').onclick = closePanel;
   document.getElementById('btnTradeJournal').onclick = openTradingPost;
   document.getElementById('btnBagJournal').onclick = openInventory;
@@ -874,22 +1051,44 @@ function openTradingPost() {
   const offers = FRONTIER_SHOP.map((offer,index) => {
     const locked = (offer.tier || 0) > tier;
     const note = locked ? SETTLEMENT_TIERS[offer.tier].name + ' unlocks this' : 'Permanent inventory item';
-    const can = !locked && rpg.coins >= offer.price;
-    return `<div class="recipe"><span><b>${offer.name}</b><small>${note}</small></span><button data-offer="${index}" ${can ? '' : 'disabled'}><span class="shop-price">${locked ? 'Locked' : offer.price + ' marks'}</span></button></div>`;
+    const priced = shopPrice(offer.price);
+    const can = !locked && rpg.coins >= priced;
+    return `<div class="recipe"><span><b>${offer.name}</b><small>${note}</small></span><button data-offer="${index}" ${can ? '' : 'disabled'}><span class="shop-price">${locked ? 'Locked' : priced + ' marks'}</span></button></div>`;
   }).join('');
+  const sellRows = Object.keys(SELL_PRICES).filter((id) => (inventory.get(Number(id)) || 0) > 0).map((id) => {
+    const bid = Number(id), have = inventory.get(bid) || 0;
+    return `<div class="recipe"><span><b>${BLOCKS[bid].name} × ${have}</b><small>${SELL_PRICES[bid]} marks each</small></span><button data-sell="${bid}"><span class="shop-price">Sell all · +${SELL_PRICES[bid] * have}</span></button></div>`;
+  }).join('') || '<p class="muted">Nothing in the bag Arun wants today.</p>';
+  const day = Math.floor(clock / DAY_LENGTH);
+  const contractRows = (rpg.contracts || []).map((c) => {
+    const left = Math.max(0, c.deadline - clock);
+    const hrs = (left / DAY_LENGTH * 24).toFixed(0);
+    const havePart = Math.min(inventory.get(c.block) || 0, c.n);
+    if (c.done) return `<div class="recipe"><span><b>${c.title}</b><small>fulfilled · +${c.pay} marks</small></span><button disabled><span class="shop-price">Done</span></button></div>`;
+    if (clock > c.deadline) return `<div class="recipe"><span><b>${c.title}</b><small>the cart left without it</small></span><button disabled><span class="shop-price">Expired</span></button></div>`;
+    return `<div class="recipe"><span><b>${c.title}</b><small>${c.n} ${BLOCKS[c.block].name.toLowerCase()} · you hold ${havePart}/${c.n} · ~${hrs}h left</small></span><button data-contract="${c.id}" ${havePart >= c.n ? '' : 'disabled'}><span class="shop-price">${c.pay} marks</span></button></div>`;
+  }).join('');
+  const sanaRows = merchantHere() ? merchantOffers().map((o, k) =>
+    `<div class="recipe"><span><b>${o.name}</b><small>Sana's price — here today only</small></span><button data-sana="${k}" ${rpg.coins >= o.price ? '' : 'disabled'}><span class="shop-price">${o.price} marks</span></button></div>`).join('')
+    : `<p class="muted">Sana the traveller calls every third day — next visit: day ${day + ((2 - day % 3 + 3) % 3) + 1}.</p>`;
   card.innerHTML = `
     <h1>Arun's trading post</h1>
     <p>“Frontier marks are earned by helping the settlement. Spend them on supplies you need; the land still expects you to gather the rest.”</p>
-    <p class="muted">Balance: ${rpg.coins} frontier marks · settlement: ${SETTLEMENT_TIERS[tier].name}</p>
+    <p class="muted">Balance: ${rpg.coins} frontier marks · settlement: ${SETTLEMENT_TIERS[tier].name}${affOf('arun') >= 4 ? ' · Arun\'s friend (−5%)' : ''}</p>
     <div class="grid">${offers}</div>
+    <h2>Sell to the post</h2><div class="grid">${sellRows}</div>
+    <h2>Contract board</h2><div class="grid">${contractRows}</div>
+    <h2>Sana the traveller ${merchantHere() ? '· <span style="color:#ffd166">in town today</span>' : ''}</h2><div class="grid">${sanaRows}</div>
     <div class="row"><button class="primary" id="btnCloseTrade">Return to world</button><button id="btnJournalTrade">Quest journal</button></div>`;
   card.querySelectorAll('[data-offer]').forEach((button) => button.onclick = () => buyFromTradingPost(Number(button.dataset.offer)));
+  card.querySelectorAll('[data-sell]').forEach((button) => button.onclick = () => { sellToPost(Number(button.dataset.sell)); openTradingPost(); });
+  card.querySelectorAll('[data-contract]').forEach((button) => button.onclick = () => { deliverContract(button.dataset.contract); openTradingPost(); });
+  card.querySelectorAll('[data-sana]').forEach((button) => button.onclick = () => { buyFromMerchant(Number(button.dataset.sana)); openTradingPost(); });
   document.getElementById('btnCloseTrade').onclick = closePanel;
   document.getElementById('btnJournalTrade').onclick = openJournal;
   panel.classList.remove('hidden');
   document.exitPointerLock && document.exitPointerLock();
 }
-
 /* ------------------------------------------------------------- day cycle */
 let clock = DAY_LENGTH * 0.25;        // start mid-morning
 function updateSky(dt) {
@@ -909,17 +1108,37 @@ function updateSky(dt) {
   document.body.style.background = '#' + skyCol.getHexString();
 }
 const isNight = () => { const t = clock / DAY_LENGTH; return t > 0.52 || t < 0.02; };
-
 /* ------------------------------------------------------------- vitals */
 let hurtCooldown = 0;
 function damage(amount, cause) {
   if (player.fly || amount <= 0) return;
+  /* hide and iron blunt claws and clubs; hunger and deep water ignore both */
+  if (cause !== 'hunger' && cause !== 'drowning' && armorTotal() > 0)
+    amount = Math.max(1, amount - armorTotal());
   player.health = Math.max(0, player.health - amount);
   say(`−${amount} health from ${cause}`);
   drawVitals();
   if (player.health === 0) respawn();
 }
+const pouches = [];
+function dropPouch() {
+  const items = [];
+  inventory.forEach((n, id) => {
+    const b = BLOCKS[id];
+    if (b && !b.power && !b.armor && !b.food && id !== 43) items.push([id, n]);  // tools, armour, food and the key stay
+  });
+  if (!items.length) return;
+  items.forEach(([id, n]) => take(id, n));
+  const px = Math.floor(player.pos.x), pz = Math.floor(player.pos.z);
+  const py = Math.max(1, Math.min(CHUNK_Y - 2, Math.floor(player.pos.y)));
+  let spot = { x: px, y: py, z: pz };
+  if (worldBlockAt(spot.x, spot.y, spot.z)) spot.y = Math.min(CHUNK_Y - 2, spot.y + 1);
+  placeWorldBlock(spot.x, spot.y, spot.z, 40);
+  pouches.push({ x: spot.x, y: spot.y, z: spot.z, items });
+  say('Your supplies stayed where you fell — the pouch is marked on the map (M)');
+}
 function respawn() {
+  dropPouch();
   say('You blacked out and woke at the spawn point');
   player.health = 20; player.food = Math.max(6, player.food - 4);
   player.pos.set(8, heightAt(8, 8) + 3, 8);
@@ -927,11 +1146,12 @@ function respawn() {
   drawVitals();
 }
 function drawVitals() {
+  const at = document.getElementById('armorTag');
+  if (at) at.textContent = armorTotal() ? '· 🛡 ' + armorTotal() : '';
   document.getElementById('healthBar').style.width = (player.health / 20 * 100) + '%';
   document.getElementById('foodBar').style.width = (player.food / 20 * 100) + '%';
   document.getElementById('mode').textContent = (player.fly ? 'Creative flight' : 'Survival') + (LOW_POWER ? ' · performance mode' : ' · balanced mode');
 }
-
 /* --------------------------------------------------------------- mining */
 let edgeWarned = false;
 let breaking = null;                  // {x,y,z,id,progress,total}
@@ -967,7 +1187,14 @@ function completeBreak(x, y, z, id, toolId) {
   const block = BLOCKS[id];
   if (!block) return false;
   setBlock(x, y, z, 0);
+  if (id === 40) {                                    // a supply pouch comes home
+    const i = pouches.findIndex((p) => p.x === x && p.y === y && p.z === z);
+    if (i >= 0) { pouches[i].items.forEach(([pid, n]) => give(pid, n)); pouches.splice(i, 1); }
+    say('You recover your supplies');
+    return true;
+  }
   give(block.drop || id, 1);
+  if (id === 6 && perkRank('timberwise')) give(6, perkRank('timberwise'));
   questEvent('gather', id, 1);
   addXp(1);
   if (toolId) wearTool(toolId);
@@ -1018,7 +1245,6 @@ function placeBlock() {
     addXp(1);
   }
 }
-
 /* ------------------------------------------------------------------- HUD */
 const hint = document.getElementById('hint');
 let hintTimer = 0;
@@ -1047,12 +1273,10 @@ function drawHotbar() {
     bar.appendChild(slot);
   });
 }
-
 /* --------------------------------------------------------------- screens */
 const panel = document.getElementById('panel');
 const card = document.getElementById('card');
 let panelMode = 'title';
-
 function showTitle() {
   panelMode = 'title';
   card.className = 'card title-card';
@@ -1068,7 +1292,7 @@ function showTitle() {
           <p class="title-kicker">Explore · Build · Defend · Grow</p>
           <h1>A wild world.<em>Your living frontier.</em></h1>
           <p class="title-lede">Gather scarce materials, build a settlement with Mira, Arun and Leela, complete story quests and defend everything you create after nightfall.</p>
-          <div class="title-pills"><span>Finite wilderness</span><span>Story quests</span><span>Settler jobs</span><span>Creatures & caves</span><span>Night raids</span><span>Creative flight</span></div>
+          <div class="title-pills"><span style="border-color:#ffd166;color:#ffd166">NEW · Chronicles update</span><span>5 story chapters</span><span>Perks & gear</span><span>Bosses & vaults</span><span>Living settlement</span><span>Contracts & trade</span><span>Night raids</span></div>
         </div>
         <!-- Captured in the game itself rather than drawn in CSS, so the picture
              on the door is the thing behind it. -->
@@ -1088,7 +1312,7 @@ function showTitle() {
             <div class="guide-step"><b>1</b><span><strong>Gather</strong><small>Mine trees, stone and rare ore.</small></span></div>
             <div class="guide-step"><b>2</b><span><strong>Build</strong><small>Turn an empty frontier into a home.</small></span></div>
             <div class="guide-step"><b>3</b><span><strong>Grow</strong><small>Help settlers and earn frontier marks.</small></span></div>
-            <div class="guide-step"><b>4</b><span><strong>Defend</strong><small>Light the settlement before dusk, or raiders break what you built.</small></span></div>
+            <div class="guide-step"><b>4</b><span><strong>Defend</strong><small>Light the settlement before dusk, or raiders break what you built.</small></span></div><div class="guide-step"><b>5</b><span><strong>Uncover</strong><small>Ruins, lore tablets and a sealed vault wait in the fog — R reads the stones.</small></span></div>
           </div>
           <details class="control-details"><summary>View all controls</summary><div class="keys">
             <b>W A S D</b><span>Walk · hold Shift to sprint</span><b>Space</b><span>Jump or rise while flying</span>
@@ -1100,7 +1324,6 @@ function showTitle() {
       </section>
       <footer class="title-foot"><span>Original BrickLab game · Built for creative explorers</span><span>Worlds save automatically every 45 seconds</span></footer>
     </main>`;
-
   const holder = document.getElementById('slots');
   slots.forEach(({ i, info }) => {
     const box = document.createElement('div');
@@ -1181,7 +1404,6 @@ function showTitle() {
     box.appendChild(row);
     holder.appendChild(box);
   });
-
   const importRow = document.createElement('div');
   importRow.className = 'row';
   const importButton = document.createElement('button');
@@ -1213,10 +1435,8 @@ function showTitle() {
   importRow.appendChild(importButton);
   importRow.appendChild(picker);
   holder.parentElement.insertBefore(importRow, holder.nextSibling);
-
   panel.classList.remove('hidden');
 }
-
 function openMap() {
   card.className = 'card';
   panelMode = 'map';
@@ -1244,14 +1464,12 @@ function openMap() {
   panel.classList.remove('hidden');
   document.exitPointerLock && document.exitPointerLock();
 }
-
 function closePanel() {
   panel.classList.add('hidden');
   panelMode = 'none';
   lastSettlerPrompt = '__refresh__';
   renderer.domElement.requestPointerLock();
 }
-
 /* ----------------------------------------------------------- chunk stream */
 function streamChunks() {
   const pcx = Math.floor(player.pos.x / CHUNK_X), pcz = Math.floor(player.pos.z / CHUNK_Z);
@@ -1285,7 +1503,6 @@ function streamChunks() {
     }
   });
 }
-
 /* ------------------------------------------------------------------ input */
 let mouseDown = false;
 renderer.domElement.addEventListener('mousedown', (e) => {
@@ -1321,7 +1538,18 @@ addEventListener('keydown', (e) => {
   if (k === 'e') { panel.classList.contains('hidden') ? openInventory() : closePanel(); }
   if (k === 'j') { panel.classList.contains('hidden') ? openJournal() : closePanel(); }
   if (k === 't') { panel.classList.contains('hidden') ? openTradingPost() : closePanel(); }
-  if (k === 'r' && panel.classList.contains('hidden')) talkToSettler(nearestSettler(4));
+  if (k === 'r' && panel.classList.contains('hidden')) {
+    const aim = rayVoxel(5);
+    if (aim && worldBlockAt(aim.x, aim.y, aim.z) === 41) { readTablet(aim.x, aim.y, aim.z); return; }
+    if (aim && worldBlockAt(aim.x, aim.y, aim.z) === 44) { tryVaultDoor(aim.x, aim.y, aim.z); return; }
+    const q = RPG_QUESTS[rpg.questIndex];
+    if (q && q.kind === 'rescue' && !escort && SITES.camp &&
+        Math.hypot(player.pos.x - SITES.camp.x, player.pos.z - SITES.camp.z) < 8) {
+      beginEscort(EXTRA_SETTLERS[0]);
+      return;
+    }
+    talkToSettler(nearestSettler(4));
+  }
   if (k === 'm') { panel.classList.contains('hidden') ? openMap() : closePanel(); }
   if (k === 'f' && panel.classList.contains('hidden')) {
     player.fly = !player.fly; player.vel.set(0, 0, 0);
@@ -1331,7 +1559,6 @@ addEventListener('keydown', (e) => {
   if (k === ' ' && pointerLocked) e.preventDefault();   // let Space activate focused buttons in menus
 });
 addEventListener('keyup', (e) => keys.delete(e.key.toLowerCase()));
-
 /* --------------------------------------------------------------- territory
    A frontier is finite. Land stops at a visible edge, and the edge moves out
    only when the player earns it — which is what makes scarcity mean anything. */
@@ -1340,12 +1567,10 @@ const TERRITORY_STEP = 16;           // each expansion pushes every edge out thi
 const TERRITORY_MAX = 160;
 let territory = TERRITORY_START;
 let boundaryMesh = null;
-
 const inTerritory = (x, z) => Math.abs(x) <= territory && Math.abs(z) <= territory;
 const chunkTouchesTerritory = (cx, cz) =>
   (cx + 1) * CHUNK_X > -territory && cx * CHUNK_X < territory &&
   (cz + 1) * CHUNK_Z > -territory && cz * CHUNK_Z < territory;
-
 function rebuildBoundary() {
   if (boundaryMesh) { scene.remove(boundaryMesh); boundaryMesh.geometry.dispose(); }
   const r = territory + 0.5, top = 96, bottom = -2;
@@ -1367,15 +1592,19 @@ function rebuildBoundary() {
     vertexColors: true, transparent: true, opacity: 0.16, side: THREE.DoubleSide, depthWrite: false }));
   scene.add(boundaryMesh);
 }
-
+function expandCost() { const n = rpg.expansions || 0; return n === 0 ? 0 : 120 + 100 * (n - 1); }
 function expandTerritory() {
   if (territory >= TERRITORY_MAX) { say('This frontier is already at its limit'); return false; }
+  const cost = expandCost();
+  if (cost > 0 && rpg.coins < cost) { say('Expanding the frontier costs ' + cost + ' marks — the surveyors do not work free'); return false; }
+  if (cost > 0) rpg.coins -= cost;
+  rpg.expansions = (rpg.expansions || 0) + 1;
   territory = Math.min(TERRITORY_MAX, territory + TERRITORY_STEP);
   rebuildBoundary();
-  say(`Frontier expanded to ${territory * 2} × ${territory * 2} — free during Early Builder Access`);
+  say(`Frontier expanded to ${territory * 2} × ${territory * 2}` + (cost ? ` · −${cost} marks` : ' — the first survey is free'));
+  drawRpgHud();
   return true;
 }
-
 /* ------------------------------------------------------------------- map
    Only chunks the player has actually been near are drawn; the rest stays
    under fog, so the territory is something you uncover rather than read off. */
@@ -1385,15 +1614,26 @@ function noteDiscovery() {
   for (let dx = -2; dx <= 2; dx++)
     for (let dz = -2; dz <= 2; dz++) discovered.add(ckey(pcx + dx, pcz + dz));
 }
-
 const BIOME_INK = ['#7cb342', '#2f7d32', '#e0cf90', '#9aa7b4', '#e8f1f6'];
+function drawMapMarkers(ctx, span, scale) {
+  const dot = (x, z, col, r) => {
+    ctx.fillStyle = col;
+    ctx.beginPath();
+    ctx.arc((x + span / 2) * scale, (z + span / 2) * scale, r || 3, 0, 7);
+    ctx.fill();
+  };
+  pouches.forEach((p) => dot(p.x, p.z, '#ffd166', 4));
+  const q = RPG_QUESTS[rpg.questIndex];
+  if (q && q.site && SITES[q.site]) dot(SITES[q.site].x, SITES[q.site].z, '#ff7b5c', 4);
+  (rpg.stamped || []).forEach((name) => { if (SITES[name]) dot(SITES[name].x, SITES[name].z, '#8fe6ec', 3); });
+  if (affOf('leela') >= 4) ['ruinA','ruinB','vault'].forEach((name) => { if (SITES[name]) dot(SITES[name].x, SITES[name].z, 'rgba(143,230,236,0.5)', 3); });
+}
 function drawMap(canvas) {
   const ctx = canvas.getContext('2d');
   const span = territory * 2 + 32;
   const scale = canvas.width / span;
   ctx.fillStyle = '#0a121c';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
-
   const toPx = (v) => (v + span / 2) * scale;
   // discovered ground, coloured by biome and shaded by height
   discovered.forEach((key) => {
@@ -1412,12 +1652,10 @@ function drawMap(canvas) {
     }
   });
   ctx.globalAlpha = 1;
-
   // the frontier edge
   ctx.strokeStyle = '#7cc4ff';
   ctx.lineWidth = 2;
   ctx.strokeRect(toPx(-territory), toPx(-territory), territory * 2 * scale, territory * 2 * scale);
-
   // spawn and the player
   const mark = (x, z, colour, size) => {
     ctx.fillStyle = colour;
@@ -1425,6 +1663,7 @@ function drawMap(canvas) {
     ctx.arc(toPx(x), toPx(z), size, 0, Math.PI * 2);
     ctx.fill();
   };
+  drawMapMarkers(ctx, span, scale);
   mark(0, 0, '#ffd479', 4);
   mark(player.pos.x, player.pos.z, '#ff6b6b', 5);
   ctx.strokeStyle = '#ffffff';
@@ -1434,12 +1673,10 @@ function drawMap(canvas) {
   ctx.lineTo(toPx(player.pos.x - Math.sin(player.yaw) * 12), toPx(player.pos.z - Math.cos(player.yaw) * 12));
   ctx.stroke();
 }
-
 /* ------------------------------------------------------------- world slots */
 const SLOTS = 3;
 const slotKey = (i) => `${SAVE_KEY}:slot${i}`;
 let activeSlot = 0;
-
 function slotSummary(i) {
   try {
     const raw = localStorage.getItem(slotKey(i));
@@ -1454,7 +1691,6 @@ function slotSummary(i) {
     };
   } catch (e) { return null; }
 }
-
 function worldPayload(name) {
   return {
     v: 3, name, seed: SEED, clock, territory,
@@ -1466,11 +1702,10 @@ function worldPayload(name) {
     tools: [...tools.entries()],
     hotbar, edits: [...edits.entries()],
     discovered: [...discovered],
+    pouches: pouches.map((p) => ({ ...p })),
   };
 }
-
 const BACKUP_AGE = 10 * 60 * 1000;   // a recovery copy is only useful if it is meaningfully older
-
 function saveWorld(quiet) {
   const payload = worldPayload(worldName);
   try {
@@ -1491,7 +1726,6 @@ function saveWorld(quiet) {
     say('Could not save — browser storage is full');
   }
 }
-
 function applyPayload(d) {
   SEED = d.seed;
   clock = d.clock ?? clock;
@@ -1502,6 +1736,8 @@ function applyPayload(d) {
   if (Number.isFinite(d.pitch)) player.pitch = d.pitch;
   player.health = d.health ?? 20; player.food = d.food ?? 20;
   rpg = d.rpg ? { ...freshRpg(), ...d.rpg, completed:[...(d.rpg.completed || [])], jobs:{...(d.rpg.jobs || {})} } : freshRpg();
+  pouches.length = 0;
+  (d.pouches || []).forEach((p) => pouches.push({ ...p }));
   inventory.clear(); (d.inventory || []).forEach(([id, n]) => inventory.set(id, n));
   tools.clear(); (d.tools || []).forEach(([id, n]) => tools.set(id, n));
   if (d.hotbar) { hotbar.length = 0; d.hotbar.forEach((v) => hotbar.push(v)); }
@@ -1509,7 +1745,6 @@ function applyPayload(d) {
   discovered.clear(); (d.discovered || []).forEach((k) => discovered.add(k));
   return true;
 }
-
 function loadSlot(i, useBackup) {
   try {
     const raw = localStorage.getItem(slotKey(i) + (useBackup ? ':backup' : ''));
@@ -1518,7 +1753,6 @@ function loadSlot(i, useBackup) {
     return applyPayload(JSON.parse(raw));
   } catch (e) { return false; }
 }
-
 function exportWorld() {
   const blob = new Blob([JSON.stringify(worldPayload(worldName))], { type: 'application/json' });
   const a = document.createElement('a');
@@ -1527,7 +1761,6 @@ function exportWorld() {
   a.click();
   setTimeout(() => URL.revokeObjectURL(a.href), 4000);
 }
-
 function importWorld(file, then) {
   const reader = new FileReader();
   reader.onload = () => {
@@ -1543,7 +1776,6 @@ function importWorld(file, then) {
   };
   reader.readAsText(file);
 }
-
 /* ---------------------------------------------------------------- creatures
    Original BrickLab wildlife. Grublings surface after dark, stone-biters live
    in the deep, and meadow hoppers graze by day and are the food supply. */
@@ -1555,6 +1787,53 @@ const SETTLERS = [
   { id:'leela', name:'Leela', role:'Scout', colour:0x2a9d8f, trim:0xffd8b5, x:8, z:12,
     greeting:'The border changes after dark. Light a trail and we can explore farther without losing our way.' },
 ];
+const EXTRA_SETTLERS = [
+  { id:'devan', name:'Devan', role:'Smith', colour:0xb0632f, trim:0xffd8b5, x:14, z:10,
+    greeting:'You pulled me off that ridge — the least I owe you is an edge on every blade you bring me.' },
+  { id:'kavya', name:'Kavya', role:'Farmer', colour:0x88a34a, trim:0xffd8b5, x:4, z:12,
+    greeting:'Soil is soil, here or anywhere. Give me a tilled plot and this town will never queue for bread.' },
+  { id:'tara', name:'Tara', role:'Healer', colour:0xc75e88, trim:0xffd8b5, x:12, z:4,
+    greeting:'A town is people, and people break. I patch them. Try to bring me fewer emergencies.' },
+  { id:'ganan', name:'Ganan', role:'Captain', colour:0x5a6d90, trim:0xffd8b5, x:8, z:3,
+    greeting:'I fought the Warlord to a standstill once, far from here. With walls like these we can do better than a standstill.' },
+];
+function rosterSpecs() {
+  return SETTLERS.concat(EXTRA_SETTLERS.filter((spec) => (rpg.rescued || []).includes(spec.id)));
+}
+/* the rescue walk: Devan follows until he is home, then he stays */
+let escort = null;   // { spec, group, pos }
+function beginEscort(spec) {
+  if (escort) return;
+  const site = SITES.camp;
+  const y = Math.max(heightAt(site.x, site.z) + 1, SEA_LEVEL + 1);
+  const group = settlerMesh(spec);
+  group.position.set(site.x + .5, y, site.z + .5);
+  scene.add(group);
+  escort = { spec, group, pos: new THREE.Vector3(site.x + .5, y, site.z + .5) };
+  say(spec.name + ': “Lead on — I can walk.”');
+}
+function updateEscort(dt) {
+  if (!escort) return;
+  const to = new THREE.Vector3().subVectors(player.pos, escort.pos).setY(0);
+  const d = to.length();
+  if (d > 2.4) {
+    to.normalize().multiplyScalar(Math.min(5.5, d) * dt * 3.2);
+    escort.pos.add(to);
+    escort.pos.y = Math.max(heightAt(Math.floor(escort.pos.x), Math.floor(escort.pos.z)) + 1, SEA_LEVEL + 1);
+    escort.group.position.copy(escort.pos);
+    escort.group.rotation.y = Math.atan2(to.x, to.z);
+  }
+  const hub = settlementHub();
+  if (Math.hypot(escort.pos.x - hub.x, escort.pos.z - hub.z) < 8) {
+    rpg.rescued = rpg.rescued || [];
+    if (!rpg.rescued.includes(escort.spec.id)) rpg.rescued.push(escort.spec.id);
+    scene.remove(escort.group);
+    escort = null;
+    spawnSettlers();
+    questEvent('rescue', 0, 1);
+    say('Devan is home — the settlement grows by one');
+  }
+}
 const settlers = [];
 function settlerMesh(spec) {
   const group = new THREE.Group();
@@ -1588,7 +1867,7 @@ function spawnSettlers() {
      texture, and a slot switch used to orphan the whole set on the GPU */
   settlers.forEach((settler) => { scene.remove(settler.group); disposeSettler(settler); });
   settlers.length=0;
-  SETTLERS.forEach((spec) => {
+  rosterSpecs().forEach((spec) => {
     const x = Math.max(-territory + 3, Math.min(territory - 3, spec.x));
     const z = Math.max(-territory + 3, Math.min(territory - 3, spec.z));
     // never below the waterline: on a low-lying seed all three stood on the seabed
@@ -1629,7 +1908,126 @@ function drawSettlerPrompt() {
   el.classList.toggle('hidden',!next);
   if(nearby)el.textContent='R · Talk to '+nearby.spec.name+' — '+nearby.spec.role;
 }
-
+/* ------------------------------------------------------ the old frontier
+   Every world hides the same story in different places: a rescue camp, two
+   ruins, a deep lair, a vault, and six voices cut into stone. All positions
+   fall out of the seed, so a shared seed is a shared treasure map. */
+let SITES = {};
+/* Place a block whether or not that chunk is streamed in yet: a far-off tier
+   build or a stamped ruin becomes an edit, and edits are applied the moment
+   the chunk generates. */
+function placeWorldBlock(x, y, z, id) {
+  if (setBlock(x, y, z, id)) return true;
+  if (y < 0 || y >= CHUNK_Y) return false;
+  edits.set(vkey(x, y, z), id);
+  return true;
+}
+function worldBlockAt(x, y, z) {
+  const b = getBlock(x, y, z);
+  if (b) return b;
+  return edits.get(vkey(x, y, z)) || 0;
+}
+function planSites() {
+  const r = (n) => { const v = Math.sin(SEED * 127.1 + n * 311.7) * 43758.5453; return v - Math.floor(v); };
+  const spot = (n, lo, hi) => Math.round((lo + r(n) * (hi - lo)) * (r(n + 50) < 0.5 ? -1 : 1));
+  SITES = {
+    camp:   { x: spot(1, 26, 40),  z: spot(2, 26, 40) },
+    ruinA:  { x: spot(3, 20, 42),  z: spot(4, 20, 42) },
+    ruinB:  { x: spot(5, 30, 56),  z: spot(6, 30, 56) },
+    lair:   { x: spot(7, 34, 58),  z: spot(8, 34, 58) },
+    vault:  { x: spot(9, 44, 70),  z: spot(10, 44, 70) },
+    t4:     { x: spot(11, 18, 60), z: spot(12, 18, 60) },
+    t5:     { x: spot(13, 18, 60), z: spot(14, 18, 60) },
+    t6:     { x: spot(15, 18, 60), z: spot(16, 18, 60) },
+  };
+}
+const LORE = [
+  'FIRST TABLET — “We came for the crystal. We stayed because the land let us. Forty of us, one good summer.”',
+  'SECOND TABLET — “The digging woke something patient. We filled the shafts. It did not need the shafts.”',
+  'THIRD TABLET — “We built the vault not to keep treasure in, but to keep a promise: whoever comes next starts richer than we did.”',
+  'FOURTH TABLET — “The mother of the burrows cannot be starved, only faced. We chose not to face her. Judge us gently.”',
+  'FIFTH TABLET — “The raids were never mindless. They follow the light and the noise of a growing town. So we went quiet, and then we went.”',
+  'SIXTH TABLET — “If you are reading all six: the key is three shards and a heart of gold. What waits behind the door was always yours.”',
+];
+function stampSite(name) {
+  rpg.stamped = rpg.stamped || [];
+  if (rpg.stamped.includes(name)) return;
+  const site = SITES[name];
+  if (!site) return;
+  const g = (dx, dz) => Math.max(heightAt(site.x + dx, site.z + dz), SEA_LEVEL);
+  const put = (dx, dy, dz, id) => { const y = g(dx, dz) + dy; if (!worldBlockAt(site.x + dx, y, site.z + dz)) placeWorldBlock(site.x + dx, y, site.z + dz, id); };
+  if (name === 'camp') {
+    put(0, 1, 0, 6); put(0, 2, 0, 23);                       // a log fire and its torch
+    put(2, 1, 0, 6); put(-2, 1, 1, 15);
+  } else if (name === 'ruinA' || name === 'ruinB') {
+    for (let d = -2; d <= 2; d++) { put(d, 1, -2, 42); put(d, 1, 2, 42); put(-2, 1, d, 42); put(2, 1, d, 42); }
+    put(-2, 2, -2, 42); put(2, 2, 2, 42); put(2, 2, -2, 42);
+    put(0, 1, 0, 41);                                        // the tablet stands amid the walls
+  } else if (name === 'lair') {
+    for (let d = -3; d <= 3; d++) { put(d, 1, -3, 42); put(d, 1, 3, 42); put(-3, 1, d, 42); put(3, 1, d, 42); }
+    put(0, 1, 0, 41);
+  } else if (name === 'vault') {
+    for (let dx = -2; dx <= 2; dx++) for (let dz = -2; dz <= 2; dz++) for (let dy = 1; dy <= 3; dy++)
+      if (Math.abs(dx) === 2 || Math.abs(dz) === 2 || dy === 3) put(dx, dy, dz, 42);
+    placeWorldBlock(site.x, g(0, -2) + 1, site.z - 2, 44);   // the door faces out
+    put(0, 1, 0, 41);
+  } else {                                                    // a lone standing tablet
+    put(0, 1, 0, 41); put(1, 1, 0, 42); put(-1, 1, 0, 42);
+  }
+  rpg.stamped.push(name);
+}
+function checkSites() {
+  if (!SITES.camp) return;
+  Object.keys(SITES).forEach((name) => {
+    const site = SITES[name];
+    if (Math.hypot(player.pos.x - site.x, player.pos.z - site.z) < 26) stampSite(name);
+  });
+  const q = RPG_QUESTS[rpg.questIndex];
+  if (q && q.kind === 'visit' && SITES[q.site]) {
+    const site = SITES[q.site];
+    if (Math.hypot(player.pos.x - site.x, player.pos.z - site.z) < 6) questEvent('visit', 0, 1);
+  }
+  /* the Burrow Mother waits at her lair for whoever the story sends */
+  if (q && q.id === 'mother' && !mobs.some((m) => m.kind === 'burrowmother')) {
+    const lair = SITES.lair;
+    if (Math.hypot(player.pos.x - lair.x, player.pos.z - lair.z) < 16)
+      spawnMob('burrowmother', lair.x + .5, Math.max(heightAt(lair.x, lair.z), SEA_LEVEL) + 1, lair.z + .5);
+  }
+}
+function readTablet(x, y, z) {
+  const key = x + ',' + y + ',' + z;
+  rpg.tabletsRead = rpg.tabletsRead || [];
+  const idx = Math.min(LORE.length - 1, rpg.tabletsRead.length);
+  const firstTime = !rpg.tabletsRead.includes(key);
+  if (firstTime) { rpg.tabletsRead.push(key); questEvent('read', 0, 1); addXp(20); }
+  card.className = 'card';
+  panelMode = 'lore';
+  card.innerHTML = '<h1>A voice in the stone</h1><p style="font-size:16px;line-height:1.7">' +
+    LORE[firstTime ? idx : Math.max(0, rpg.tabletsRead.indexOf(key))] +
+    '</p><p class="muted">Tablets read: ' + rpg.tabletsRead.length + ' of ' + LORE.length +
+    '</p><div class="row"><button class="primary" id="btnLoreClose">Step back</button></div>';
+  document.getElementById('btnLoreClose').onclick = closePanel;
+  panel.classList.remove('hidden');
+  document.exitPointerLock && document.exitPointerLock();
+}
+function tryVaultDoor(x, y, z) {
+  if ((inventory.get(43) || 0) < 1) { say('The door is sealed — six voices speak of a crystal key'); return false; }
+  take(43, 1);
+  placeWorldBlock(x, y, z, 0);
+  rpg.vaultOpen = true;
+  const site = SITES.vault;
+  const gy = Math.max(heightAt(site.x, site.z), SEA_LEVEL);
+  [[0,1,0,13],[1,1,1,13],[-1,1,1,14],[1,1,-1,14],[-1,1,-1,19]].forEach(([dx,dy,dz,id]) => {
+    const bx = site.x + dx, by = gy + dy, bz = site.z + dz;
+    if (worldBlockAt(bx, by, bz) === 41) return;
+    placeWorldBlock(bx, by, bz, id);
+  });
+  give(19, 2); give(20, 2); rpg.coins += 60;
+  questEvent('vault', 0, 1);
+  addXp(80);
+  say('The vault opens — the first settlers kept their promise · +60 marks');
+  return true;
+}
 const MOBS = {
   grubling: {
     name:'Grubling', hostile:true, health:8, speed:2.6, damage:2, aggro:16,
@@ -1645,12 +2043,23 @@ const MOBS = {
     name:'Meadow hopper', hostile:false, health:5, speed:2.0, damage:0, aggro:0,
     body:0xc8a86a, trim:0xf2e3c0, size:[0.6,0.7,0.8], surface:true, day:true,
     drop:{ id:32, n:1 },                      // a ration
+    drop2:{ id:35, n:1 },                     // and a hide for the tanner
+  },
+  /* the deep has a queen; the raids get a general */
+  burrowmother: {
+    name:'Burrow Mother', hostile:true, boss:true, health:60, speed:2.1, damage:4, aggro:34,
+    body:0x4a3560, trim:0xe0b0ff, size:[1.7,1.4,1.9], noSpawn:true,
+    drop:{ id:20, n:3 },
+  },
+  warlord: {
+    name:'Raid Warlord', hostile:true, boss:true, health:80, speed:3.3, damage:5, aggro:40,
+    body:0x3c2f28, trim:0xff9d5c, size:[1.3,1.5,1.4], noSpawn:true,
+    drop:{ id:19, n:3 },
   },
 };
 const MOB_CAP = { hostile: 14, passive: 8 };
 const mobs = [];
 const mobGeometry = {};
-
 function mobMesh(kind) {
   const spec = MOBS[kind];
   if (!mobGeometry[kind]) {
@@ -1674,7 +2083,6 @@ function mobMesh(kind) {
   }
   return mobGeometry[kind].clone();
 }
-
 /** A torch within reach keeps the dark things away. */
 function litNearby(x, y, z, radius) {
   for (let dx = -radius; dx <= radius; dx++)
@@ -1683,7 +2091,6 @@ function litNearby(x, y, z, radius) {
         if (getBlock(x + dx, y + dy, z + dz) === 23) return true;
   return false;
 }
-
 function surfaceHeight(x, z) {
   for (let y = CHUNK_Y - 1; y > 0; y--) {
     const id = getBlock(x, y, z);
@@ -1691,7 +2098,6 @@ function surfaceHeight(x, z) {
   }
   return -1;
 }
-
 function spawnMob(kind, x, y, z) {
   const spec = MOBS[kind];
   const group = mobMesh(kind);
@@ -1702,15 +2108,12 @@ function spawnMob(kind, x, y, z) {
   mobs.push(mob);
   return mob;
 }
-
 let spawnTimer = 0;
 function updateSpawning(dt) {
   spawnTimer -= dt;
   if (spawnTimer > 0) return;
   spawnTimer = 1.3;
-
   const p = player.pos;
-
   for (let attempt = 0; attempt < 8; attempt++) {
     // recount every attempt so the caps actually hold
     const hostile = mobs.reduce((n, m) => n + (m.spec.hostile ? 1 : 0), 0);
@@ -1720,7 +2123,6 @@ function updateSpawning(dt) {
     const x = Math.floor(p.x + Math.cos(angle) * dist);
     const z = Math.floor(p.z + Math.sin(angle) * dist);
     if (!inTerritory(x, z)) continue;
-
     // deep and dark: stone-biters, hunting for an air pocket near the player's level
     if (p.y < 30) {
       let placed = false;
@@ -1738,7 +2140,6 @@ function updateSpawning(dt) {
     if (ground < 1 || ground > CHUNK_Y - 4) continue;
     const y = ground + 1;
     if (getBlock(x, y, z) || getBlock(x, y + 1, z)) continue;
-
     if (isNight() && hostile < MOB_CAP.hostile && !litNearby(x, y, z, 7)) {
       spawnMob('grubling', x + 0.5, y, z + 0.5);
     } else if (!isNight() && passive < MOB_CAP.passive && getBlock(x, ground, z) === 1) {
@@ -1746,17 +2147,14 @@ function updateSpawning(dt) {
     }
   }
 }
-
 function removeMob(i) {
   scene.remove(mobs[i].group);
   mobs.splice(i, 1);
 }
-
 /* ---------------------------------------------------------------- raids
    Creatures used to be a hazard to the player and nothing else: you could
    die, but nothing you built could ever be harmed, which made "defend"
    the one verb on the box the game did not deliver.
-
    After dark, raiders now walk on the settlement rather than on you. They
    chew through the blocks you placed — but only ones standing in the dark.
    Torchlight is the wall that actually works, which is what the crafting
@@ -1768,7 +2166,6 @@ const SETTLER_LIGHT_RADIUS = 5;
 const SETTLER_HEALTH = 10;
 const raid = { active: false, nights: 0, blocksLost: 0, driven: 0, warned: false };
 let wasNight = false;
-
 function noteSettlementBlock(x, z) {
   const hub = rpg.hub && Number.isFinite(rpg.hub.n) ? rpg.hub : { x: 0, z: 0, n: 0 };
   rpg.hub = { x: (hub.x * hub.n + x) / (hub.n + 1), z: (hub.z * hub.n + z) / (hub.n + 1), n: hub.n + 1 };
@@ -1783,12 +2180,18 @@ function settlementHub() {
   }
   return { x: player.pos.x, z: player.pos.z };
 }
-
 function beginRaid() {
   raid.active = true;
   raid.nights += 1;
   raid.blocksLost = 0;
   raid.driven = 0;
+  /* chapter five: the raids find their general */
+  const q = RPG_QUESTS[rpg.questIndex];
+  if (q && q.id === 'warlord' && !mobs.some((m) => m.kind === 'warlord')) {
+    const hub = settlementHub();
+    spawnMob('warlord', hub.x + 10.5, Math.max(heightAt(Math.round(hub.x + 10), Math.round(hub.z)), SEA_LEVEL) + 1, hub.z + .5);
+    say('The Warlord walks at the head of the raid');
+  }
   const hub = settlementHub();
   const wanted = 2 + settlementTier();
   let spawned = 0;
@@ -1808,7 +2211,6 @@ function beginRaid() {
   }
   if (spawned) say('Raiders are moving on the settlement — light it, or hold them off');
 }
-
 function endRaid() {
   raid.active = false;
   for (let i = mobs.length - 1; i >= 0; i--) if (mobs[i].raider) removeMob(i);
@@ -1821,17 +2223,38 @@ function endRaid() {
     if (!raid.blocksLost && !raid.driven) say('Dawn — the settlement held through the night');
     else say('Dawn — ' + raid.blocksLost + ' block' + (raid.blocksLost === 1 ? '' : 's') + ' lost' +
              (returned ? ' · ' + returned + ' settler' + (returned === 1 ? '' : 's') + ' back at work' : ''));
+    rpg.raidsSurvived = (rpg.raidsSurvived || 0) + 1;
+    questEvent('raid', 0, 1);
   }
   drawRpgHud();
 }
-
+/* ------------------------------------------------------------- each dawn
+   Wages out, goods in, fresh contracts on the board. The town runs on the
+   same clock the raids do. */
+function onNewDay(day) {
+  rollContracts();
+  const crew = rosterSpecs().length;
+  if (crew > 3) {
+    const wages = crew - 3;
+    if (rpg.coins >= wages) { rpg.coins -= wages; say('Wages paid · −' + wages + ' mark' + (wages === 1 ? '' : 's')); }
+    else say('No marks for wages — the crew grumbles');
+  }
+  Object.entries(rpg.assigns || {}).forEach(([sid, station]) => {
+    const spec = rosterSpecs().find((sp) => sp.id === sid);
+    if (!spec) return;
+    if (station === 22) { give(15, 2); say(spec.name + ' crafted 2 planks overnight'); }
+    else if (station === 46) { give(32, 1); say(spec.name + ' brought in a fresh ration'); }
+    /* guards do their work during the raid itself */
+  });
+  if (merchantHere()) say('Sana the traveller has set up by the trading post (day ' + (day + 1) + ')');
+  drawRpgHud();
+}
 function updateRaid(dt) {
   const night = isNight();
   if (night && !wasNight) { if (settlementTier() >= RAID_GRACE_TIER) beginRaid(); }
   if (!night && wasNight && raid.active) endRaid();
   wasNight = night;
 }
-
 /** A settler standing in the dark can be driven off until dawn. */
 function harmSettler(settler, amount) {
   if (settler.down) return;
@@ -1845,7 +2268,6 @@ function harmSettler(settler, amount) {
     lastSettlerPrompt = '__refresh__';
   }
 }
-
 /** A raider gnawing whatever unlit thing you built is standing in its way. */
 function chewBlock(mob, dt, x, y, z) {
   const id = getBlock(x, y, z);
@@ -1859,17 +2281,24 @@ function chewBlock(mob, dt, x, y, z) {
   if (raid.blocksLost === 1) say('A raider is breaking through — torches stop them');
   return true;
 }
-
 function updateMobs(dt) {
+  settlers.forEach((settler) => { if (settler.guardCd > 0) settler.guardCd -= dt; });
+  /* the Burrow Mother calls her brood */
+  mobs.forEach((mob) => {
+    if (mob.kind !== 'burrowmother') return;
+    mob.summonCd = (mob.summonCd || 0) - dt;
+    if (mob.summonCd <= 0 && mobs.filter((m) => m.kind === 'grubling').length < 4) {
+      mob.summonCd = 7;
+      spawnMob('grubling', mob.pos.x + 2, mob.pos.y + 1, mob.pos.z);
+    }
+  });
   const p = player.pos;
   for (let i = mobs.length - 1; i >= 0; i--) {
     const mob = mobs[i];
     const spec = mob.spec;
     const away = mob.pos.distanceTo(p);
-
     // too far to matter, or caught by the dawn
     if (away > 64 || (spec.surface && spec.hostile && !isNight() && mob.pos.y > 40)) { removeMob(i); continue; }
-
     const toPlayer = new THREE.Vector3().subVectors(p, mob.pos);
     let wish = new THREE.Vector3();
     const raiding = mob.raider && raid.active && away > 6;
@@ -1886,6 +2315,17 @@ function updateMobs(dt) {
           harmSettler(settler, 2);
         }
       });
+      /* a settler on watch duty fights back — the watchpost earns its planks */
+      settlers.forEach((settler) => {
+        if (settler.down) return;
+        if ((rpg.assigns || {})[settler.spec.id] !== 45) return;
+        if (settler.pos.distanceTo(mob.pos) < 6 && (settler.guardCd || 0) <= 0) {
+          settler.guardCd = 1.6;
+          mob.health -= 3;
+          mob.hurt = 0.25;
+          if (mob.health <= 0) { const gi = mobs.indexOf(mob); if (gi >= 0) removeMob(gi); raid.driven += 1; }
+        }
+      });
     } else if (spec.hostile && away < spec.aggro) {
       wish.copy(toPlayer).setY(0).normalize().multiplyScalar(spec.speed);
       mob.group.rotation.y = Math.atan2(toPlayer.x, toPlayer.z);
@@ -1895,7 +2335,6 @@ function updateMobs(dt) {
       mob.group.rotation.y = -mob.wander + Math.PI / 2;
       if (!spec.hostile && away < 5) wish.multiplyScalar(-1.6);   // shy of the player
     }
-
     // if it has ended up inside the world — someone built round it — climb out
     if (isSolid(getBlock(Math.floor(mob.pos.x), Math.floor(mob.pos.y), Math.floor(mob.pos.z)))) {
       mob.pos.y += 1;
@@ -1903,7 +2342,6 @@ function updateMobs(dt) {
       mob.group.position.copy(mob.pos);
       continue;
     }
-
     // gravity and a hop over single steps
     mob.vel.y -= 26 * dt;
     const nx = mob.pos.x + wish.x * dt, nz = mob.pos.z + wish.z * dt;
@@ -1919,20 +2357,17 @@ function updateMobs(dt) {
     if ((blockedX || blockedZ) && canStep && mob.vel.y <= 0.1) mob.vel.y = 7.2;
     if (!blockedX && inTerritory(nx, mob.pos.z)) mob.pos.x = nx;
     if (!blockedZ && inTerritory(mob.pos.x, nz)) mob.pos.z = nz;
-
     const nextY = mob.pos.y + mob.vel.y * dt;
     if (isSolid(getBlock(Math.floor(mob.pos.x), Math.floor(nextY), Math.floor(mob.pos.z))) && mob.vel.y < 0) {
       mob.pos.y = Math.floor(nextY) + 1;
       mob.vel.y = 0;
     } else mob.pos.y = nextY;
     if (mob.pos.y < -10) { removeMob(i); continue; }
-
     mob.group.position.copy(mob.pos);
     if (mob.hurt > 0) {
       mob.hurt -= dt;
       mob.group.position.x += (Math.random() - 0.5) * 0.06;
     }
-
     // a hostile one that reaches you bites
     mob.swing -= dt;
     if (spec.hostile && away < 1.5 && mob.swing <= 0) {
@@ -1945,7 +2380,6 @@ function updateMobs(dt) {
     }
   }
 }
-
 /** The creature in front of you, if one is close enough to hit. */
 function mobInReach() {
   const dir = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
@@ -1959,13 +2393,16 @@ function mobInReach() {
   }
   return best;
 }
-
 function hitMob(mob) {
-  let power = 1;
+  /* a real weapon outclasses swinging a pickaxe; a pickaxe still beats a fist */
+  let toolPower = 1;
   inventory.forEach((count, id) => {
     const b = BLOCKS[id];
-    if (b.power && b.power > power) power = b.power;   // any tool swings harder than a fist
+    if (b.power && b.tool !== 'weapon' && b.power > toolPower) toolPower = b.power;
   });
+  const weapon = bestTool('weapon');
+  let power = Math.max(1 + Math.floor(toolPower / 3), weapon.power) + perkRank('ironarm');
+  if (weapon.id) wearTool(weapon.id);
   mob.health -= power;
   mob.hurt = 0.25;
   const knock = new THREE.Vector3().subVectors(mob.pos, player.pos).setY(0).normalize().multiplyScalar(0.6);
@@ -1975,6 +2412,15 @@ function hitMob(mob) {
     const i = mobs.indexOf(mob);
     if (i >= 0) removeMob(i);
     if (mob.spec.drop) give(mob.spec.drop.id, mob.spec.drop.n);
+    if (mob.spec.drop2 && Math.random() < 0.7) give(mob.spec.drop2.id, mob.spec.drop2.n);
+    if (mob.spec.boss) {
+      rpg.bossKills = rpg.bossKills || [];
+      rpg.bossKills.push(mob.kind);
+      questEvent('boss', 0, 1);
+      rpg.coins += 25;
+      addXp(60);
+      say(mob.spec.name + ' has fallen · the frontier breathes again');
+    }
     /* a bounty is for defending the settlement — grazing animals are food,
        not a wage, or hunting hoppers out-earns every quest in the game */
     if (mob.spec.hostile) {
@@ -1988,11 +2434,64 @@ function hitMob(mob) {
     }
   }
 }
-
 /* ------------------------------------------------------------------- loop */
 let last = performance.now(), fpsAcc = 0, fpsFrames = 0, hudTimer = 0, foodTimer = 0, autoSave = 0;
+let siteTimer = 0;
+/* --------------------------------------------------- tier-up: the crew builds
+   A new tier is not a caption — overnight the settlers raise something real. */
+const buildQueue = [];
+function queuePrefab(tier) {
+  const hub = settlementHub();
+  const hx = Math.round(hub.x), hz = Math.round(hub.z);
+  const put = (dx, dz, dy, id) => buildQueue.push({ x: hx + dx, z: hz + dz, dy, id });
+  if (tier === 1) {            // a well
+    [[-1,-1],[0,-1],[1,-1],[-1,0],[1,0],[-1,1],[0,1],[1,1]].forEach(([dx,dz]) => put(6 + dx, 6 + dz, 1, 4));
+    put(6, 6, 1, 8); put(7, 5, 2, 23);
+  } else if (tier === 2) {     // a workshop shell
+    for (let dx = -2; dx <= 2; dx++) { put(dx - 8, -2 + 6, 1, 15); put(dx - 8, 2 + 6, 1, 15); }
+    for (let dz = -1; dz <= 1; dz++) { put(-10, dz + 6, 1, 15); if (dz !== 0) put(-6, dz + 6, 1, 15); }
+    put(-8, 6, 1, 22); put(-10, 5, 2, 23); put(-6, 7, 2, 23);
+  } else if (tier === 3) {     // watch corners and gate posts
+    [[-11,-11],[11,-11],[-11,11],[11,11]].forEach(([dx,dz]) => { put(dx, dz, 1, 4); put(dx, dz, 2, 45); put(dx, dz, 3, 23); });
+    put(-1, -11, 1, 4); put(1, -11, 1, 4); put(-1, -11, 2, 23); put(1, -11, 2, 23);
+  }
+  if (buildQueue.length) say('The settlers are building through the night — tier ' + (tier + 1) + ' takes shape');
+}
+function updateBuildQueue(dt) {
+  if (!buildQueue.length) return;
+  buildQueue._t = (buildQueue._t || 0) - dt;
+  if (buildQueue._t > 0) return;
+  buildQueue._t = 0.14;
+  const b = buildQueue.shift();
+  const y = Math.max(heightAt(b.x, b.z), SEA_LEVEL) + b.dy;
+  if (!worldBlockAt(b.x, y, b.z)) placeWorldBlock(b.x, y, b.z, b.id);
+  if (!buildQueue.length) say('The crew downs tools — come and see what they made');
+}
+function checkTier() {
+  const t = settlementTier();
+  if (t > (rpg.tierSeen || 0)) {
+    rpg.tierSeen = t;
+    queuePrefab(t);
+    if (t === 2 && !(rpg.rescued || []).includes('kavya')) { rpg.rescued.push('kavya'); spawnSettlers(); say('Kavya the farmer has joined the settlement'); }
+    if (t === 3 && !(rpg.rescued || []).includes('tara'))  { rpg.rescued.push('tara');  spawnSettlers(); say('Tara the healer has joined the settlement'); }
+    say('— The settlement is now a ' + SETTLEMENT_TIERS[t].name.toUpperCase() + ' —');
+    questEvent('tier', 0, 1);
+  }
+}
+let prospectSaid = 0;
+function pulseProspector() {
+  if (!perkRank('prospector')) return;
+  const reach = 5 + 3 * perkRank('prospector');
+  const px = Math.floor(player.pos.x), py = Math.floor(player.pos.y), pz = Math.floor(player.pos.z);
+  let ores = 0;
+  for (let dx = -reach; dx <= reach; dx += 2) for (let dy = -4; dy <= 4; dy += 2) for (let dz = -reach; dz <= reach; dz += 2) {
+    const id = getBlock(px + dx, py + dy, pz + dz);
+    if (id >= 10 && id <= 14) ores += 1;
+  }
+  const el = document.getElementById('oreping');
+  if (el) { el.textContent = ores ? '⛏ ore sense: ' + ores + ' nearby' : ''; }
+}
 let streamTimer = 0, lastStreamCx = Infinity, lastStreamCz = Infinity;
-
 function physics(dt) {
   const speed = (player.fly ? 16 : keys.has('shift') ? 8.2 : 5.2);
   const forward = new THREE.Vector3(-Math.sin(player.yaw), 0, -Math.cos(player.yaw));
@@ -2003,7 +2502,6 @@ function physics(dt) {
   if (keys.has('d')) wish.add(right);
   if (keys.has('a')) wish.sub(right);
   if (wish.lengthSq()) wish.normalize().multiplyScalar(speed);
-
   if (player.fly) {
     let vy = 0;
     if (keys.has(' ')) vy += speed;
@@ -2012,11 +2510,9 @@ function physics(dt) {
     player.fallFrom = null;
     return;
   }
-
   player.vel.y -= 26 * dt;
   if (keys.has(' ') && player.onGround) { player.vel.y = 8.4; player.onGround = false; }
   player.onGround = false;
-
   const head = getBlock(Math.floor(player.pos.x), Math.floor(player.pos.y + player.eye), Math.floor(player.pos.z));
   const swimming = head === 8;
   if (swimming) {
@@ -2025,17 +2521,13 @@ function physics(dt) {
     player.air -= dt;
     if (player.air < 0) { damage(1, 'drowning'); player.air = 1.2; }
   } else player.air = 10;
-
   if (player.vel.y < -0.1 && player.fallFrom === null) player.fallFrom = player.pos.y;
   if (player.vel.y > 0) player.fallFrom = null;
-
   moveAxis('x', wish.x * dt * (swimming ? 0.6 : 1));
   moveAxis('z', wish.z * dt * (swimming ? 0.6 : 1));
   moveAxis('y', player.vel.y * dt);
-
   if (player.pos.y < -20) { damage(6, 'the void'); respawn(); }
 }
-
 /** However you are moving — walking, swimming or flying — the frontier holds. */
 function keepInsideFrontier() {
   const edge = territory - 0.45;
@@ -2047,23 +2539,18 @@ function keepInsideFrontier() {
     if (!edgeWarned) { edgeWarned = true; say('The frontier ends here — expand it from the map (M)'); }
   } else edgeWarned = false;
 }
-
 function frame(now) {
   requestAnimationFrame(frame);
   const dt = Math.min(0.05, (now - last) / 1000);
   last = now;
-
   if (panelMode === 'title') { renderer.render(scene, camera); return; }
-
   /* a panel is open: the world pauses. Without this the player kept walking,
      drowning and taking mob damage while reading the journal. */
   if (panelMode !== 'none') { keys.clear(); renderer.render(scene, camera); return; }
-
   physics(dt);
   keepInsideFrontier();
   camera.position.set(player.pos.x, player.pos.y + player.eye, player.pos.z);
   camera.rotation.set(player.pitch, player.yaw, 0, 'YXZ');
-
   streamTimer -= dt;
   const streamCx = Math.floor(player.pos.x / CHUNK_X), streamCz = Math.floor(player.pos.z / CHUNK_Z);
   if (streamTimer <= 0 || streamCx !== lastStreamCx || streamCz !== lastStreamCz) {
@@ -2078,11 +2565,21 @@ function frame(now) {
   updateRaid(dt);
   updateSpawning(dt);
   updateMobs(dt);
-
+  updateEscort(dt);
+  const bossMob = mobs.find((m) => m.spec && m.spec.boss);
+  const bb = document.getElementById('bossbar');
+  if (bb) {
+    bb.classList.toggle('hidden', !bossMob);
+    if (bossMob) bb.textContent = bossMob.spec.name + ' · ' + Math.max(0, bossMob.health) + '/' + bossMob.spec.health;
+  }
+  siteTimer -= dt;
+  if (siteTimer <= 0) { siteTimer = 0.7; checkSites(); checkTier(); pulseProspector(); }
+  const dayNow = Math.floor(clock / DAY_LENGTH);
+  if (dayNow !== rpg.dayIndex) { rpg.dayIndex = dayNow; onNewDay(dayNow); }
+  updateBuildQueue(dt);
   const hit = rayVoxel(6);
   if (hit) { highlight.position.set(hit.x + 0.5, hit.y + 0.5, hit.z + 0.5); highlight.visible = true; }
   else highlight.visible = false;
-
   // slow hunger, and healing when well fed
   foodTimer += dt;
   if (foodTimer > 12 && !player.fly) {
@@ -2095,7 +2592,6 @@ function frame(now) {
   }
   autoSave += dt;
   if (autoSave > 45) { autoSave = 0; saveWorld(true); }
-
   fpsAcc += dt; fpsFrames++; hudTimer += dt;
   if (hudTimer > 0.4) {
     let faces = 0;
@@ -2111,15 +2607,18 @@ function frame(now) {
     document.getElementById('land').textContent = (territory * 2) + '×' + (territory * 2);
     fpsAcc = 0; fpsFrames = 0; hudTimer = 0;
   }
-
   renderer.render(scene, camera);
 }
-
 /* ------------------------------------------------------------------ start */
 function startGame(fresh) {
   if (fresh) rpg = freshRpg();
   if (!rpg.jobs) rpg.jobs = {};
   rebuildBoundary();
+  planSites();
+  rpg.rescued = rpg.rescued || []; rpg.perks = rpg.perks || {}; rpg.aff = rpg.aff || {};
+  rpg.assigns = rpg.assigns || {}; rpg.contracts = rpg.contracts || []; rpg.stamped = rpg.stamped || [];
+  rpg.tabletsRead = rpg.tabletsRead || []; rpg.tierSeen = rpg.tierSeen || settlementTier();
+  if (!rpg.contracts.length) rollContracts();
   spawnSettlers();
   if (!inventory.size) { give(1, 8); give(6, 4); }
   player.pos.x = Math.max(-territory + 2, Math.min(territory - 2, player.pos.x));
@@ -2136,9 +2635,8 @@ function startGame(fresh) {
   drawHotbar(); drawVitals(); drawRpgHud();
   renderer.domElement.requestPointerLock();
   noteDiscovery();
-  say('Left click and hold to mine · E for the bag · M for the map');
+  say('Left click and hold to mine · E for the bag · M for the map · R reads stones and doors');
 }
-
 /* Progress used to be durable only at the 45s autosave boundary — close the
    tab after levelling up and the level was gone. */
 let savedOnExit = false;
@@ -2153,10 +2651,8 @@ addEventListener('pageshow', () => { savedOnExit = false; });
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'hidden') saveOnExit(); else savedOnExit = false;
 });
-
 showTitle();
 requestAnimationFrame(frame);
-
 /* a small hook so the page can be driven from tests or the parent frame */
 window.frontier = {
   world: { getBlock, setBlock, heightAt, biomeAt, chunks },
@@ -2168,6 +2664,12 @@ window.frontier = {
   territory: () => territory, inTerritory, expandTerritory, discovered,
   saveWorld, loadSlot, slotSummary, exportWorld, worldPayload,
   rpg: () => ({ ...rpg, quest:RPG_QUESTS[rpg.questIndex] || null }), questEvent, addXp,
+  PERKS, buyPerk, perkRank, armorTotal, pouches, dropPouch, completeBreak,
+  SITES: () => SITES, planSites, stampSite, checkSites, readTablet, tryVaultDoor, LORE,
+  sellToPost, rollContracts, deliverContract, merchantHere, merchantOffers, buyFromMerchant,
+  contracts: () => rpg.contracts, expandCost, checkTier, buildQueue, updateBuildQueue, queuePrefab,
+  rosterSpecs, beginEscort, updateEscort, cycleAssign, stationBuilt, onNewDay, affOf, addAff, shopPrice,
+  edits, placeWorldBlock, worldBlockAt, vkey,
   settlers, spawnSettlers, nearestSettler, talkToSettler,
   raid, beginRaid, endRaid, updateRaid, settlementHub, harmSettler, chewBlock, settlementTier, openJournal, openTradingPost, completeSettlementJob, buyFromTradingPost,
   setSlot: (i) => { activeSlot = i; },
